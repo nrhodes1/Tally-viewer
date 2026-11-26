@@ -25,39 +25,70 @@ const SKIP_CLASSES = new Set(['IFCSPACE', 'IFCOPENINGELEMENT', 'IFCANNOTATION', 
 function makeElement(geometry, info) {
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
-  const { volume, area } = measure(geometry);
+  const { volume, area, volumeEstimated } = measure(geometry);
   const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: 0xcccccc }));
-  const el = { uid: 0, mesh, volume, area, ...info };
+  const el = { uid: 0, mesh, volume, area, volumeEstimated, ...info };
   mesh.userData.element = el;
   return el;
 }
 
 // Volume via signed tetrahedra; face area = the largest group of coplanar-
 // direction triangles (opposite faces merged), i.e. a wall's or slab's face.
+//
+// Signed volume is only right for closed, consistently wound meshes, and Revit
+// IFC exports often aren't (open faces, flipped parts), which can inflate a wall
+// to many times its real size. So the result is checked against two bounds it can
+// never exceed: the bounding box, and, for wall- or slab-like elements, face area
+// x thickness measured across that face. Out of bounds -> use the estimate.
 export function measure(geometry) {
   const pos = geometry.attributes.position;
   const idx = geometry.index;
   const n = idx ? idx.count : pos.count;
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const bb = geometry.boundingBox;
+  const center = bb.getCenter(new THREE.Vector3()); // local origin keeps the tetra sums precise
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
   const ab = new THREE.Vector3(), ac = new THREE.Vector3(), cr = new THREE.Vector3();
-  let vol = 0;
-  const buckets = new Map();
+  let vol = 0, totalArea = 0;
+  const buckets = new Map(); // direction key -> {area, normal}
   for (let i = 0; i < n; i += 3) {
     const i0 = idx ? idx.getX(i) : i, i1 = idx ? idx.getX(i + 1) : i + 1, i2 = idx ? idx.getX(i + 2) : i + 2;
-    a.fromBufferAttribute(pos, i0); b.fromBufferAttribute(pos, i1); c.fromBufferAttribute(pos, i2);
+    a.fromBufferAttribute(pos, i0).sub(center); b.fromBufferAttribute(pos, i1).sub(center); c.fromBufferAttribute(pos, i2).sub(center);
     vol += a.dot(cr.crossVectors(b, c)) / 6;
     ab.subVectors(b, a); ac.subVectors(c, a); cr.crossVectors(ab, ac);
     const twiceArea = cr.length();
     if (twiceArea < 1e-12) continue;
+    totalArea += twiceArea / 2;
     cr.divideScalar(twiceArea);
     // Canonical direction so opposite faces share a bucket.
     if (cr.x < -1e-6 || (Math.abs(cr.x) <= 1e-6 && (cr.y < -1e-6 || (Math.abs(cr.y) <= 1e-6 && cr.z < 0)))) cr.negate();
     const k = `${Math.round(cr.x * 20)},${Math.round(cr.y * 20)},${Math.round(cr.z * 20)}`;
-    buckets.set(k, (buckets.get(k) || 0) + twiceArea / 2);
+    if (!buckets.has(k)) buckets.set(k, { area: 0, normal: cr.clone() });
+    buckets.get(k).area += twiceArea / 2;
   }
-  let maxBucket = 0;
-  for (const v of buckets.values()) maxBucket = Math.max(maxBucket, v);
-  return { volume: Math.abs(vol), area: maxBucket / 2 };
+  let top = { area: 0, normal: null };
+  for (const v of buckets.values()) if (v.area > top.area) top = v;
+  const area = top.area / 2;
+
+  const size = bb.getSize(new THREE.Vector3());
+  const boxVol = size.x * size.y * size.z;
+  let volume = Math.abs(vol);
+  let estimated = false;
+  // Plate-like: the two main faces carry a good share of the surface (walls, slabs, roofs).
+  const plateLike = top.normal && totalArea > 0 && top.area / totalArea >= 0.4;
+  if (plateLike) {
+    let lo = Infinity, hi = -Infinity;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      const d = v.fromBufferAttribute(pos, i).dot(top.normal);
+      if (d < lo) lo = d; if (d > hi) hi = d;
+    }
+    const est = Math.min(area * (hi - lo), boxVol);
+    if (volume > est * 1.5 || volume > boxVol * 1.02 || volume < est * 0.02) { volume = est; estimated = true; }
+  } else if (volume > boxVol * 1.02 || volume === 0) {
+    volume = boxVol; estimated = true;
+  }
+  return { volume, area, volumeEstimated: estimated };
 }
 
 // Revit Z-up (x, y, z) -> three.js Y-up (x, z, -y)

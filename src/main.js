@@ -721,7 +721,7 @@ function cardHTML(el, mode = 'full') {
   const title = el.type || el.name || '(unnamed element)';
   const sub = [el.category, el.family].filter(Boolean).join(' · ');
   const idLine = el.elementId ? `<span>Element ID</span><span>${esc(el.elementId)}</span>` : '';
-  const qty = `<span>Volume</span><span>${fmtNum(el.volume, 2)} m³</span><span>Area</span><span>${fmtNum(el.area, 1)} m²</span>`;
+  const qty = `<span>Volume</span><span title="${el.volumeEstimated ? 'Estimated from area × thickness: the IFC geometry is not watertight' : ''}">${el.volumeEstimated ? '≈ ' : ''}${fmtNum(el.volume, 2)} m³</span><span>Area</span><span>${fmtNum(el.area, 1)} m²</span>`;
   const head = (color, value) => `<div class="hd"><span class="sw" style="background:${color}"></span><div class="hd-txt">
       <div class="tt">${esc(title)}</div><div class="st">${esc(sub)}</div></div>${inline ? value : ''}</div>`;
   if (!g) {
