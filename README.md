@@ -61,7 +61,9 @@ The parser ignores title rows above the header. For a workbook, it picks the she
 The viewer also reads the workbook C.Scale exports (Project Summary, Category by Stage, Time Series, Takeoffs). These group results by C.Scale building subsection, such as "Enclosure > Exterior Walls", not by Revit type, so matching works differently:
 
 - Each element is matched to a subsection by its Revit category and type name. Footings go to Foundations, floors to Slabs/Decks (or Slabs-on-Grade if the type name says grade), columns and beams to Slabs/Decks, exterior walls to Exterior Walls, and so on.
-- Every element in a subsection gets the same intensity. Types can't be told apart, because the export doesn't name them.
+- If a subsection holds more than one assembly (say a rainscreen wall and a brick wall under Exterior Walls), each element goes to the assembly whose name and materials share the most keywords with its Revit type name. Common synonyms are recognized, such as GWB/gypsum, CMU/masonry, IGU/glazing and CLT/cross-laminated timber. Elements with no keyword match take whichever assemblies no element claimed.
+- Otherwise every element in a subsection gets the same intensity.
+- Subsections that C.Scale quantifies per ft² or m² (walls, roofs, ceilings, flooring, glazing) are split across elements by face area. The rest are split by volume.
 - Takeoffs give one whole-life total per material. The viewer splits it across life-cycle stages using that category's proportions in Category by Stage.
 - Stored carbon is reported once per scenario. The viewer spreads it across wood-based materials by volume.
 - Operational energy is left out. Construction activities, demolition, refrigerants and services show under unmatched results.

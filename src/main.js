@@ -4,6 +4,7 @@ import { loadDemoModel, loadIfcModel } from './model.js';
 import {
   readTableFile, tableFromText, buildDataSets, evalRecord, detectColumns, norm, typeKey,
 } from './data.js';
+import { mergeMaterials } from './cscale.js';
 import { divergingColor, cssColor, gradientCSS, percentile } from './color.js';
 
 const $ = (s) => document.querySelector(s);
@@ -183,6 +184,90 @@ function match() {
     }
     if (rec) { el.rec = rec; el.matchedBy = how; }
   }
+  splitByAssembly();
+}
+
+// ---- C.Scale assemblies -------------------------------------------------------
+// A subsection can hold several assemblies (e.g. a rainscreen wall and a brick wall
+// under Exterior Walls). Elements go to the assembly whose name and materials share
+// the most keywords with their Revit family/type name. Elements with no keyword
+// match take the assemblies nobody claimed; if every assembly was claimed, they join
+// the one with the most matched elements.
+const SYNONYMS = [
+  [/\b(gwb|gyp\w*|drywall|sheetrock)\b/g, ' gypsum '], [/\bcmu\b|\bblock\b/g, ' masonry '], [/\bact\b|acoustic/g, ' act '],
+  [/\bigu\b|glaz\w*|glass/g, ' glass '], [/cross.?lam\w*|\bclt\b/g, ' clt '], [/glu.?lam\w*|\bglt\b/g, ' glulam '],
+  [/timber|lumber|softwood|plywood|\bwood\b/g, ' wood '], [/\bstuds?\b|framing|\bcfs\b/g, ' stud '], [/alumin\w*/g, ' aluminum '],
+  [/fib(er|re).?cement|\bfcb\b/g, ' fibercement '], [/\blvt\b|vinyl/g, ' vinyl '], [/terraz+o/g, ' terrazzo '],
+  [/mineral wool|rock.?wool/g, ' mineralwool '], [/\bmcm\b|\bacm\b|metal composite|composite metal/g, ' mcm '], [/curtain.?wall/g, ' curtainwall '],
+];
+const STOPWORDS = new Set(('wall walls interior exterior partition partitions floor floors roof roofs basic type generic finish system systems '
+  + 'assembly with and the for new existing typ typical two one sides side both large small layer layers material materials').split(' '));
+function keywords(text) {
+  let s = ` ${String(text).toLowerCase()} `;
+  for (const [re, r] of SYNONYMS) s = s.replace(re, r);
+  return new Set(s.split(/[^a-z]+/).filter((t) => t.length > 2 && !STOPWORDS.has(t)));
+}
+function splitByAssembly() {
+  const { data, model } = state;
+  const parents = new Map();
+  for (const el of model.elements) {
+    if (el.rec?.kind === 'subsection' && el.rec.groups?.size > 1 && !el.rec.groups.has('')) {
+      if (!parents.has(el.rec)) parents.set(el.rec, []);
+      parents.get(el.rec).push(el);
+    }
+  }
+  data._split = new Map(); // parent key -> leaf records
+  const cache = data._derived || (data._derived = new Map());
+  const leaf = (parent, name, mats) => {
+    const key = `${parent.key}|asm:${norm(name)}`;
+    if (!cache.has(key)) cache.set(key, { ...parent, key, family: name, parent: parent.key, groups: null, materials: mats });
+    return cache.get(key);
+  };
+  for (const [parent, els] of parents) {
+    const groups = [...parent.groups.values()].map((g) => ({ ...g, words: keywords(`${g.name} ${[...g.materials.keys()].join(' ')}`), els: [] }));
+    const rest = [];
+    for (const el of els) {
+      const words = keywords(`${el.family} ${el.type}`);
+      let best = null, bestScore = 0, tie = false;
+      for (const g of groups) {
+        let score = 0;
+        for (const w of words) if (g.words.has(w)) score++;
+        if (score > bestScore) { best = g; bestScore = score; tie = false; } else if (score && score === bestScore) tie = true;
+      }
+      if (best && !tie) best.els.push(el); else rest.push(el);
+    }
+    const claimed = groups.filter((g) => g.els.length);
+    if (!claimed.length) continue; // nothing to go on: keep the subsection whole
+    const unclaimed = groups.filter((g) => !g.els.length);
+    const leaves = [];
+    for (const g of claimed) {
+      const r = leaf(parent, g.name, g.materials);
+      for (const el of g.els) { el.rec = r; el.matchedBy = 'Assembly'; }
+      leaves.push(r);
+    }
+    if (unclaimed.length && rest.length) {
+      const name = unclaimed.map((g) => g.name).join(' / ');
+      const r = leaf(parent, name, mergeMaterials(unclaimed.map((g) => g.materials)));
+      for (const el of rest) el.rec = r;
+      leaves.push(r);
+    } else {
+      for (const g of unclaimed) leaves.push(leaf(parent, g.name, g.materials));
+      const biggest = claimed.reduce((a, b) => (b.els.length > a.els.length ? b : a));
+      for (const el of rest) el.rec = leaf(parent, biggest.name, biggest.materials);
+    }
+    data._split.set(parent.key, leaves);
+  }
+}
+
+/** Result records after any assembly split: what elements can actually match. */
+function leafRecords() {
+  const { data } = state;
+  if (!data) return [];
+  const out = [];
+  for (const r of [...data.types.values(), ...data.elements.values()]) {
+    if (data._split?.has(r.key)) out.push(...data._split.get(r.key)); else out.push(r);
+  }
+  return out;
 }
 
 // C.Scale groups results by building subsection ("Enclosure > Exterior Walls"), not by Revit type.
@@ -234,7 +319,10 @@ function compute() {
     emissions += g.ev.emissions;
     storage += g.ev.biogenic;
     for (const el of g.els) {
-      const share = g.volume > 1e-9 ? el.volume / g.volume : g.area > 1e-9 ? el.area / g.area : 1 / g.els.length;
+      // C.Scale subsections quantified per ft²/m² are spread by face area; everything else by volume.
+      const byArea = g.rec.basis === 'area' && g.area > 1e-9;
+      const share = byArea ? el.area / g.area
+        : g.volume > 1e-9 ? el.volume / g.volume : g.area > 1e-9 ? el.area / g.area : 1 / g.els.length;
       el.share = share;
       el.abs = g.ev.net * share;
       el.value = state.metric === 'absolute' ? el.abs : state.metric === 'area' ? g.perArea : g.perVolume;
@@ -243,7 +331,7 @@ function compute() {
   }
   // Results in the export that never matched the model still count toward its total.
   let unmatchedNet = 0, unmatchedTypes = 0;
-  const src = state.data ? [...state.data.types.values(), ...state.data.elements.values()] : [];
+  const src = leafRecords();
   for (const rec of src) if (!groups.has(rec.key)) { unmatchedNet += evalRecord(rec, stages, state.biogenic).net; unmatchedTypes++; }
 
   state.groups = groups;
@@ -345,7 +433,7 @@ const signCls = (v) => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
 
 // ------------------------------------------------------------------ sidebar
 const METRIC_NOTES = {
-  absolute: 'Type total split across its elements by volume.',
+  absolute: 'Each result split across its elements by volume (by area for C.Scale results quantified per ft² or m²).',
   area: 'Type total ÷ face area. Best for walls, floors, roofs.',
   volume: 'Type total ÷ volume. Best for columns, beams, footings.',
 };
@@ -401,10 +489,10 @@ function renderSidebar() {
     const tcol = cssColor(state.metric === 'absolute' ? Math.sign(v) * Math.min(1, Math.abs(v) / maxAbs) : tOf(v));
     const bar = v >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
     return `<li data-kind="type" data-key="${esc(g.key)}" class="${isOn('type', g.key) ? 'on' : ''}" title="${esc(g.rec.family)}: ${esc(g.rec.type)}">
-      <span class="nm"><span class="sw" style="background:${tcol}"></span>${esc(g.rec.type || g.rec.elementId)}</span>
+      <span class="nm"><span class="sw" style="background:${tcol}"></span>${esc((g.rec.parent && g.rec.family) || g.rec.type || g.rec.elementId)}</span>
       <span class="vv ${signCls(v)}">${f.n}</span>
       <span class="bar"><i style="${bar};background:${tcol}"></i></span>
-      <span class="meta">${esc((g.rec.kind === 'subsection' && g.rec.family) || g.rec.category || '—')} · ${g.els.length} el.${state.metric === 'absolute' ? '' : ` · ${fmtMassStr(g.ev.net, { sign: true })} total`}</span>
+      <span class="meta">${esc(g.rec.parent ? g.rec.type : (g.rec.kind === 'subsection' && g.rec.family) || g.rec.category || '—')} · ${g.els.length} el.${state.metric === 'absolute' ? '' : ` · ${fmtMassStr(g.ev.net, { sign: true })} total`}</span>
     </li>`;
   };
   $('#typesSum').textContent = `${groups.length} ${groups.length === 1 ? 'type' : 'types'}`;
@@ -462,7 +550,7 @@ function renderDiagnostics() {
     const k = `${el.category} · ${el.family ? el.family + ': ' : ''}${el.type || '(no type)'}`;
     unmatched.set(k, (unmatched.get(k) || 0) + 1);
   }
-  const notInModel = data ? [...data.types.values(), ...data.elements.values()].filter((r) => !state.groups.has(r.key)) : [];
+  const notInModel = leafRecords().filter((r) => !state.groups.has(r.key));
   const how = new Map();
   for (const el of model.elements) if (el.matchedBy) how.set(el.matchedBy, (how.get(el.matchedBy) || 0) + 1);
 
@@ -565,12 +653,13 @@ function cardHTML(el, mode = 'full') {
   const body = `<div class="kv">
       <span>Intensity</span><span>${fmtMetric(g.perArea, 'area', { sign: true }).n} kg/m² · ${fmtMetric(g.perVolume, 'volume', { sign: true }).n} kg/m³</span>
       ${g.rec.kind ? `<span>Group</span><span>${esc(g.rec.kind === 'subsection' ? `${g.rec.system} › ${g.rec.type}` : g.rec.type)}</span>` : ''}
+      ${g.rec.kind === 'subsection' && g.rec.family ? `<span>C.Scale assembly</span><span>${esc(g.rec.family)}</span>` : ''}
       <span>${g.rec.kind ? 'Group' : 'Type'} total · ${g.els.length} el.</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
       ${g.ev.emissions > 0 ? `<span>Share of emissions</span><span>${fmtNum(shareEm, 1)}%</span>` : ''}
       ${g.ev.biogenic < 0 ? `<span>Share of storage</span><span>${fmtNum(shareSt, 1)}%</span>` : ''}
       ${idLine}${qty}
     </div>${matHTML}
-    ${el.matchedBy && !['Category + Family + Type', 'Element ID', 'Building subsection'].includes(el.matchedBy) ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
+    ${el.matchedBy && !['Category + Family + Type', 'Element ID', 'Building subsection', 'Assembly'].includes(el.matchedBy) ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
   return h + hero + (inline ? `<div class="more">${body}</div>` : body);
 }
 

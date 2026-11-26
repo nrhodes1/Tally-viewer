@@ -15,6 +15,7 @@ import { norm, num } from './data.js';
 
 const OPERATIONAL = /electric|fossil|energy|operational/i;
 const BIO = /timber|lumber|plywood|\bwood|\bclt\b|\bglt\b|glulam|\blvl\b|\bosb\b|bamboo|straw|hemp|cork|cellulose|mass timber/i;
+const AREA_UNITS = /^(ft²|ft2|sf|sq\.? ?ft|m²|m2|sq\.? ?m|yd²|yd2|sy)$/;
 const TO_M3 = { cy: 0.764555, yd3: 0.764555, 'yd³': 0.764555, m3: 1, 'm³': 1, ft3: 0.0283168, 'ft³': 0.0283168, cf: 0.0283168, bf: 0.00235974 };
 
 const findHeader = (grid, res) => grid.findIndex((row) => res.every((re) => row.some((c) => re.test(String(c).trim()))));
@@ -107,17 +108,20 @@ export function parseCScale({ takeoffs, categories }) {
         const label = rest.length ? rest.join('>').trim() : system;
         covered.add(system.toLowerCase());
         const key = `sub:${norm(r.sub)}`;
-        if (!types.has(key)) types.set(key, { key, kind: 'subsection', category: system, family: '', type: label, system, subsection: r.sub, assemblies: new Set(), materials: new Map() });
+        if (!types.has(key)) types.set(key, { key, kind: 'subsection', category: system, family: '', type: label, system, subsection: r.sub, groups: new Map(), materials: new Map(), areaEm: 0, otherEm: 0 });
         const rec = types.get(key);
-        if (r.asm) rec.assemblies.add(r.asm);
-        if (!rec.materials.has(r.mat)) rec.materials.set(r.mat, { stages: {}, biogenic: 0, mass: 0 });
-        const mat = rec.materials.get(r.mat);
+        // Materials are kept per assembly so a subsection can later be split by assembly.
+        const gname = r.asm || '';
+        if (!rec.groups.has(gname)) rec.groups.set(gname, { name: gname, materials: new Map() });
+        const gmats = rec.groups.get(gname).materials;
+        if (!gmats.has(r.mat)) gmats.set(r.mat, { stages: {}, biogenic: 0, mass: 0 });
+        const mat = gmats.get(r.mat);
+        if (AREA_UNITS.test(r.unit)) rec.areaEm += Math.abs(r.total); else rec.otherEm += Math.abs(r.total);
         const sh = share.get(system.toLowerCase());
         if (sh) for (const [s, f] of Object.entries(sh)) mat.stages[s] = (mat.stages[s] || 0) + r.total * f;
         else mat.stages.Total = (mat.stages.Total || 0) + r.total;
         if (BIO.test(r.mat)) bio.push({ mat, m3: TO_M3[r.unit] ? r.qty * TO_M3[r.unit] : 0, total: r.total });
       }
-      for (const rec of types.values()) rec.family = [...rec.assemblies].join(' / ');
     } else {
       // No takeoffs for this scenario: one record per category (Structure, Enclosure, ...).
       for (const { cat, stages } of cats) {
@@ -150,6 +154,15 @@ export function parseCScale({ takeoffs, categories }) {
       }
     }
 
+    // Totals per subsection, and how to spread them over elements: by area when most
+    // of the subsection's carbon is quantified per ft² / m², otherwise by volume.
+    for (const rec of types.values()) {
+      if (rec.kind !== 'subsection') continue;
+      rec.materials = mergeMaterials([...rec.groups.values()].map((g) => g.materials));
+      rec.family = [...rec.groups.keys()].filter(Boolean).join(' / ');
+      rec.basis = rec.areaEm > rec.otherEm ? 'area' : 'volume';
+    }
+
     sets.set(scen, {
       types, elements: new Map(), perElement: false, warnings: [], mapping: null,
       stages: stageLabels.length ? stageLabels : ['Total'], hasBiogenic: stored.size > 0,
@@ -158,4 +171,16 @@ export function parseCScale({ takeoffs, categories }) {
   if (stageLabels.length && takeRows.size) notes.push('Stage split for each material follows its category totals in "Category by Stage".');
   if (stored.size) notes.push('Stored carbon is spread across wood-based materials by volume.');
   return { sets, notes };
+}
+
+export function mergeMaterials(maps) {
+  const out = new Map();
+  for (const m of maps) for (const [name, mat] of m) {
+    if (!out.has(name)) out.set(name, { stages: {}, biogenic: 0, mass: 0 });
+    const o = out.get(name);
+    for (const [s, v] of Object.entries(mat.stages)) o.stages[s] = (o.stages[s] || 0) + v;
+    o.biogenic += mat.biogenic;
+    o.mass += mat.mass;
+  }
+  return out;
 }
