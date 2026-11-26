@@ -24,7 +24,7 @@ const state = {
   metric: 'absolute',     // absolute | area | volume
   stages: new Set(),
   biogenic: true,
-  clip: 95,
+  clip: 100,              // percentile the color scale is capped at (100 = full range)
   shared: false,
   cut: 1,                 // section-cut height as a fraction of model height (1 = off)
   isolate: null,          // {kind: 'type' | 'system', key}
@@ -64,7 +64,7 @@ function applyTheme() {
   if (state.model) paint();
 }
 const NODATA = new THREE.Color('#c3c5c0');
-const UNMATCHED_HL = new THREE.Color('#e0a320'); // unmatched elements while highlighted
+const UNMATCHED_HL = new THREE.Color('#8e918b'); // unmatched elements while highlighted
 const EDGE_MAT = new THREE.LineBasicMaterial({ color: 0x1d1f1c, transparent: true, opacity: 0.22, clippingPlanes: [cutPlane] });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
@@ -587,7 +587,7 @@ function renderSidebar() {
   const showingUnmatched = state.isolate?.kind === 'unmatched';
   $('#unmatchedBtn').hidden = nUnmatched === 0 && !showingUnmatched;
   $('#unmatchedBtn').classList.toggle('on', showingUnmatched);
-  $('#unmatchedBtn').innerHTML = showingUnmatched ? 'Show all elements'
+  $('#unmatchedBtn').innerHTML = showingUnmatched ? 'Show matched elements'
     : `<span class="dot"></span>Highlight unmatched elements <span class="muted">${nUnmatched.toLocaleString()}</span>`;
   $('#typeList').innerHTML = order.map((sys) => {
     const list = bySys.get(sys).sort((x, y) => mval(y) - mval(x));

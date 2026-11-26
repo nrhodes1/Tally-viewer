@@ -6,7 +6,7 @@ A browser viewer that colors a Revit model by its embodied-carbon results from T
 - **Red** means net emissions: concrete, steel, aluminum, glazing.
 - **Deeper color** means a stronger value. The scale is centered at zero.
 - **Hover** over any element to see a card with its type, carbon, intensity and quantities, plus a material breakdown of what drives the result. Click an element to pin its card.
-- **Elements:** results are grouped into Structure, Enclosure, Interiors and Other, the way Tally reports group results, each with a subtotal. Click a system or a type to isolate it and ghost the rest of the model. **Highlight unmatched elements**, at the foot of the list, isolates elements with no results in amber. Hover one to see why it didn't match.
+- **Elements:** results are grouped into Structure, Enclosure, Interiors and Other, the way Tally reports group results, each with a subtotal. Click a system or a type to isolate it and ghost the rest of the model. **Highlight unmatched elements**, at the foot of the list, isolates elements with no results in gray. Hover one to see why it didn't match.
 - **Settings** (button over the 3D view) holds the color mode, life-cycle stages, scale options and the matching and column-mapping tools.
 - **Section cut:** slice the model by height to see interior elements such as cores, partitions and beams.
 
@@ -107,7 +107,7 @@ The viewer measures volume and face area from the mesh. Face area is the largest
 
 - **Life-cycle stages:** toggle which modules count. Module D is off by default, as EN 15978 reports it separately.
 - **Biogenic storage:** included by default. Turn it off if your export already nets biogenic carbon into GWP, or to see fossil emissions only.
-- **Outlier clipping:** each side of the scale is capped at a percentile (95th by default), so one huge slab doesn't wash out everything else. Elements past the cap show at full color.
+- **Outlier clipping:** off by default, so the legend runs to the true maximum. In Settings you can cap each side of the scale at a percentile, so one huge slab doesn't wash out everything else. Elements past the cap show at full color.
 - **Same scale:** by default, green and red scale independently, so storage stays visible next to large emissions. Tick this to put both on one scale for a like-for-like comparison.
 
 ## Versioning

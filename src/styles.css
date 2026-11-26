@@ -318,5 +318,5 @@ button { font: inherit; color: inherit; }
 .btn-ghost:hover { border-color: var(--ink-3); color: var(--ink); }
 .btn-ghost:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .btn-ghost.on { border-color: var(--ink); color: var(--ink); font-weight: 600; justify-content: center; }
-.btn-ghost .dot { width: 10px; height: 10px; border-radius: 3px; background: #e0a320; flex: none; }
+.btn-ghost .dot { width: 10px; height: 10px; border-radius: 3px; background: #8e918b; flex: none; }
 .btn-ghost .muted { margin-left: auto; font-variant-numeric: tabular-nums; }
