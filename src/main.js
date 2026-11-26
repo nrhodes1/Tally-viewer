@@ -120,6 +120,7 @@ function applyCut() {
   const h = modelBox.isEmpty() ? 1e9 : modelBox.min.y + (modelBox.max.y - modelBox.min.y) * state.cut + 1e-3;
   cutPlane.constant = state.cut >= 1 ? 1e9 : h;
   $('#cutVal').textContent = state.cut >= 1 ? 'off' : `${fmtNum(h - modelBox.min.y, 1)} m`;
+  $('#cutSum').textContent = $('#cutVal').textContent;
 }
 
 // ------------------------------------------------------------------ data
@@ -357,8 +358,8 @@ function renderSidebar() {
   const em = fmtMass(totals.emissions);
   const st = fmtMass(totals.storage);
   const pct = model.elements.length ? Math.round((totals.matchedEls / model.elements.length) * 100) : 0;
-  $('#summary').innerHTML = `
-    <h2>Summary</h2>
+  $('#summarySum').textContent = `${net.n} ${net.u} net`;
+  $('#summaryBody').innerHTML = `
     <div class="stats">
       <div class="stat big"><div class="k">Net embodied carbon</div>
         <div class="v ${signCls(totals.net)}">${net.n}<small>${net.u}</small></div></div>
@@ -406,6 +407,7 @@ function renderSidebar() {
       <span class="meta">${esc((g.rec.kind === 'subsection' && g.rec.family) || g.rec.category || '—')} · ${g.els.length} el.${state.metric === 'absolute' ? '' : ` · ${fmtMassStr(g.ev.net, { sign: true })} total`}</span>
     </li>`;
   };
+  $('#typesSum').textContent = `${groups.length} ${groups.length === 1 ? 'type' : 'types'}`;
   $('#typeList').innerHTML = order.map((sys) => {
     const list = bySys.get(sys).sort((x, y) => mval(y) - mval(x));
     const net = list.reduce((acc, g) => acc + g.ev.net, 0);
@@ -446,6 +448,7 @@ function renderModelData() {
   // Scenario selector: shown when the export has more than one scenario.
   $('#scenarioBlock').hidden = nScen < 2;
   if (nScen > 1) {
+    $('#scenarioSum').textContent = state.scenario;
     $('#scenarioSel').innerHTML = [...state.sets.keys()].map((s) =>
       `<option ${s === state.scenario ? 'selected' : ''}>${esc(s)}</option>`).join('');
   }

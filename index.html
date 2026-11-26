@@ -23,7 +23,7 @@
       <p class="sub">Revit model × Tally results</p>
     </header>
 
-    <details class="block mdata" id="modelData">
+    <details class="block fold" id="modelData">
       <summary>
         <span class="md-ttl">Model data</span>
         <span class="md-sum" id="mdSum"></span>
@@ -48,24 +48,44 @@
       <button id="demoBtn" class="link">Reset to demo</button>
     </details>
 
-    <section class="block" id="scenarioBlock" hidden>
-      <h2><label for="scenarioSel">Scenario</label></h2>
+    <details class="block fold" id="scenarioBlock" open hidden>
+      <summary>
+        <span class="md-ttl">Scenario</span>
+        <span class="md-sum" id="scenarioSum"></span>
+        <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </summary>
+      <label for="scenarioSel" class="sr-only">Scenario</label>
       <select id="scenarioSel" class="select"></select>
-    </section>
-    <section class="block" id="summary"></section>
+    </details>
+    <details class="block fold" id="summary" open>
+      <summary>
+        <span class="md-ttl">Summary</span>
+        <span class="md-sum" id="summarySum"></span>
+        <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </summary>
+      <div id="summaryBody"></div>
+    </details>
     <section class="block ecard" id="elCard" hidden></section>
 
-    <section class="block">
-      <h2>Section cut</h2>
+    <details class="block fold" id="cutBlock" open>
+      <summary>
+        <span class="md-ttl">Section cut</span>
+        <span class="md-sum" id="cutSum"></span>
+        <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </summary>
       <label class="range">Height: <b id="cutVal">off</b>
         <input type="range" id="cutRange" min="2" max="100" step="1" value="100">
       </label>
-    </section>
+    </details>
 
-    <section class="block grow">
-      <h2>Types</h2>
+    <details class="block fold grow" id="typesBlock" open>
+      <summary>
+        <span class="md-ttl">Types</span>
+        <span class="md-sum" id="typesSum"></span>
+        <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </summary>
       <div id="typeList" class="types"></div>
-    </section>
+    </details>
   </aside>
 
   <main id="stage">

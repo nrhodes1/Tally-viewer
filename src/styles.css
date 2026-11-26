@@ -64,14 +64,17 @@ button { font: inherit; color: inherit; }
 .link { background: none; border: 0; padding: 0; margin-top: 8px; color: var(--ink-3); font-size: 12px; cursor: pointer; text-decoration: underline; }
 
 /* Model data: collapsible section with a drop zone per input */
-.mdata summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; list-style: none; }
-.mdata summary::-webkit-details-marker { display: none; }
+.fold > summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; list-style: none; }
+.fold > summary::-webkit-details-marker { display: none; }
 .md-ttl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); font-weight: 600; flex: none; }
 .md-sum { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mdata .chev { flex: none; align-self: center; color: var(--ink-3); transition: transform .15s; }
-.mdata[open] .chev { transform: rotate(180deg); }
-.mdata[open] .md-sum { visibility: hidden; }
-.zones { display: grid; gap: 8px; margin-top: 10px; }
+.fold > summary .chev { flex: none; align-self: center; color: var(--ink-3); transition: transform .15s; }
+.fold[open] > summary .chev { transform: rotate(180deg); }
+.fold[open] > summary .md-sum { visibility: hidden; }
+.zones { display: grid; gap: 8px; }
+.fold[open] > summary { margin-bottom: 10px; }
+.fold > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .zone {
   display: grid; gap: 1px; padding: 10px 12px; border: 1.5px dashed var(--line); border-radius: 10px;
   cursor: pointer; background: var(--bg); transition: border-color .15s, background .15s;
