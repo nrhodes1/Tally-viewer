@@ -116,6 +116,21 @@ function setModel(model) {
   $('#cutRange').value = 100;
   applyCut();
   frameModel();
+  if (!model.empty) { canvas.style.transition = 'none'; canvas.style.opacity = '0'; state.fadeIn = true; }
+}
+
+// Fade a newly loaded model in. The scene background matches the stage behind the
+// canvas, so fading the canvas reads as the model fading in. Render one frame first
+// so a large model's first (slow) frame doesn't eat the fade.
+function startFadeIn() {
+  if (!state.fadeIn) return;
+  state.fadeIn = false;
+  renderer.render(scene, camera);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  requestAnimationFrame(() => {
+    canvas.style.transition = reduce ? 'none' : 'opacity .8s ease';
+    canvas.style.opacity = '1';
+  });
 }
 const modelBox = new THREE.Box3();
 function applyCut() {
@@ -427,6 +442,7 @@ function refresh() {
   renderLegend();
   if (state.pinned) showCard(state.pinned);
   syncStart();
+  startFadeIn();
 }
 
 // Start screen stays up until both a model and results are loaded. A model loaded
