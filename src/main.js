@@ -64,6 +64,7 @@ function applyTheme() {
   if (state.model) paint();
 }
 const NODATA = new THREE.Color('#c3c5c0');
+const UNMATCHED_HL = new THREE.Color('#e0a320'); // unmatched elements while highlighted
 const EDGE_MAT = new THREE.LineBasicMaterial({ color: 0x1d1f1c, transparent: true, opacity: 0.22, clippingPlanes: [cutPlane] });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
@@ -437,6 +438,7 @@ function systemOf(rec) {
 function inIsolation(el) {
   const iso = state.isolate;
   if (!iso) return true;
+  if (iso.kind === 'unmatched') return !el.rec;
   if (!el.rec) return false;
   return iso.kind === 'type' ? el.rec.key === iso.key : systemOf(el.rec) === iso.key;
 }
@@ -449,7 +451,7 @@ function paint() {
     if (el.rec) {
       const [r, g, b] = divergingColor(tOf(el.value));
       m.color.setRGB(r, g, b, THREE.SRGBColorSpace);
-    } else m.color.copy(NODATA);
+    } else m.color.copy(state.isolate?.kind === 'unmatched' ? UNMATCHED_HL : NODATA);
     m.transparent = ghost;
     m.opacity = ghost ? 0.07 : 1;
     m.depthWrite = !ghost;
@@ -580,7 +582,13 @@ function renderSidebar() {
       <span class="meta">${esc(g.rec.parent ? g.rec.type : (g.rec.kind === 'subsection' && g.rec.family) || g.rec.category || '—')} · ${g.els.length} el.${state.metric === 'absolute' ? '' : ` · ${fmtMassStr(g.ev.net, { sign: true })} total`}</span>
     </li>`;
   };
-  $('#typesSum').textContent = `${groups.length} ${groups.length === 1 ? 'type' : 'types'}`;
+  $('#typesSum').textContent = `${state.totals.matchedEls.toLocaleString()} matched`;
+  const nUnmatched = state.model.elements.length - state.totals.matchedEls;
+  const showingUnmatched = state.isolate?.kind === 'unmatched';
+  $('#unmatchedBtn').hidden = nUnmatched === 0 && !showingUnmatched;
+  $('#unmatchedBtn').classList.toggle('on', showingUnmatched);
+  $('#unmatchedBtn').innerHTML = showingUnmatched ? 'Show all elements'
+    : `<span class="dot"></span>Highlight unmatched elements <span class="muted">${nUnmatched.toLocaleString()}</span>`;
   $('#typeList').innerHTML = order.map((sys) => {
     const list = bySys.get(sys).sort((x, y) => mval(y) - mval(x));
     const net = list.reduce((acc, g) => acc + g.ev.net, 0);
@@ -845,6 +853,10 @@ $('#bioToggle').addEventListener('change', (e) => { state.biogenic = e.target.ch
 $('#sharedToggle').addEventListener('change', (e) => { state.shared = e.target.checked; refresh(); });
 $('#cutRange').addEventListener('input', (e) => { state.cut = +e.target.value / 100; applyCut(); });
 $('#clipRange').addEventListener('input', (e) => { state.clip = +e.target.value; refresh(); });
+$('#unmatchedBtn').addEventListener('click', () => {
+  state.isolate = state.isolate?.kind === 'unmatched' ? null : { kind: 'unmatched' };
+  paint(); renderSidebar();
+});
 $('#typeList').addEventListener('click', (e) => {
   const li = e.target.closest('[data-kind]'); if (!li) return;
   const next = { kind: li.dataset.kind, key: li.dataset.key };

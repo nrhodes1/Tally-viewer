@@ -6,7 +6,7 @@ A browser viewer that colors a Revit model by its embodied-carbon results from T
 - **Red** means net emissions: concrete, steel, aluminum, glazing.
 - **Deeper color** means a stronger value. The scale is centered at zero.
 - **Hover** over any element to see a card with its type, carbon, intensity and quantities, plus a material breakdown of what drives the result. Click an element to pin its card.
-- **Types by system:** types are grouped into Structure, Enclosure, Interiors and Other, the way Tally reports group results, each with a subtotal. Click a system or a type to isolate it and ghost the rest of the model.
+- **Elements:** results are grouped into Structure, Enclosure, Interiors and Other, the way Tally reports group results, each with a subtotal. Click a system or a type to isolate it and ghost the rest of the model. **Highlight unmatched elements**, at the foot of the list, isolates elements with no results in amber. Hover one to see why it didn't match.
 - **Settings** (button over the 3D view) holds the color mode, life-cycle stages, scale options and the matching and column-mapping tools.
 - **Section cut:** slice the model by height to see interior elements such as cores, partitions and beams.
 
