@@ -15,6 +15,8 @@ const state = {
   table: null,            // parsed table {headers, rows, mapping}
   data: null,             // buildCarbonData result
   dataName: '',
+  modelFile: null,        // {name, at: Date, demo}
+  dataFile: null,
   metric: 'absolute',     // absolute | area | volume
   stages: new Set(),
   biogenic: true,
@@ -296,8 +298,7 @@ const METRIC_NOTES = {
 
 function renderSidebar() {
   const { totals, model, data } = state;
-  $('#sources').innerHTML = `Model: <b>${esc(model.name)}</b> · ${model.elements.length.toLocaleString()} elements<br>
-    Results: <b>${esc(state.dataName || 'none')}</b>${data ? ` · ${(data.types.size + data.elements.size).toLocaleString()} ${data.perElement ? 'records' : 'types'}` : ''}`;
+  renderModelData();
 
   const net = fmtMass(totals.net, { sign: true });
   const em = fmtMass(totals.emissions);
@@ -366,6 +367,25 @@ function renderSidebar() {
   }).join('') || '<p class="note">No matches. See Settings › Matching.</p>';
 
   renderDiagnostics();
+}
+
+function fmtWhen(d) {
+  if (!d) return '';
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? `today ${time}` : `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}`;
+}
+function renderModelData() {
+  const { model, data, modelFile, dataFile } = state;
+  const mf = modelFile || { name: model.name, demo: true };
+  const df = dataFile || { name: state.dataName || 'None loaded', demo: true };
+  $('#ifcFile').textContent = mf.name;
+  $('#ifcMeta').textContent = [`${model.elements.length.toLocaleString()} elements`,
+    mf.demo ? 'built-in demo' : `uploaded ${fmtWhen(mf.at)}`].join(' · ');
+  $('#dataFile').textContent = df.name;
+  $('#dataMeta').textContent = data ? [`${(data.types.size + data.elements.size).toLocaleString()} ${data.perElement ? 'records' : 'types'}`,
+    df.demo ? 'synthetic sample' : `uploaded ${fmtWhen(df.at)}`].join(' · ') : '';
+  $('#mdSum').textContent = `${mf.name} · ${df.name}`;
 }
 
 function renderDiagnostics() {
@@ -619,9 +639,11 @@ async function handleFile(file) {
   const n = file.name.toLowerCase();
   try {
     if (n.endsWith('.ifc')) {
+      if ($('#ifcZone').classList.contains('disabled')) { status('IFC upload is in the full version only', { error: true }); return; }
       status('Loading model…', { sticky: true });
       const model = await loadIfcModel(file, (m) => status(m, { sticky: true }));
       setModel(model);
+      state.modelFile = { name: file.name, at: new Date() };
       refresh();
       const pct = Math.round((state.totals.matchedEls / Math.max(1, model.elements.length)) * 100);
       status(`${model.elements.length.toLocaleString()} elements loaded · ${pct}% matched to results`);
@@ -629,6 +651,7 @@ async function handleFile(file) {
       status('Reading results…', { sticky: true });
       const table = await readTableFile(file);
       setTable(table, file.name + (table.sheet ? ` › ${table.sheet}` : ''));
+      state.dataFile = { name: state.dataName, at: new Date() };
       refresh();
       status(`${state.data.types.size + state.data.elements.size} result records · ${state.totals.matchedEls} elements matched`);
     } else status(`Unsupported file: ${file.name}`, { error: true });
@@ -639,6 +662,17 @@ async function handleFile(file) {
 }
 $('#ifcInput').addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
 $('#dataInput').addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
+
+// Drop zones in Model data: highlight while a file is dragged over them.
+for (const z of [$('#ifcZone'), $('#dataZone')]) {
+  z.addEventListener('dragover', (e) => { e.preventDefault(); z.classList.add('over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('over'));
+  z.addEventListener('drop', (e) => {
+    e.preventDefault(); e.stopPropagation(); z.classList.remove('over');
+    dragDepth = 0; $('#dropHint').hidden = true;
+    [...e.dataTransfer.files].forEach(handleFile);
+  });
+}
 
 let dragDepth = 0;
 window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; $('#dropHint').hidden = false; });
@@ -651,6 +685,7 @@ window.addEventListener('drop', (e) => {
 
 async function loadDemo() {
   setModel(loadDemoModel());
+  state.modelFile = state.dataFile = null;
   try {
     const text = window.__SAMPLE_CSV ?? await (await fetch('sample/sample-tally.csv')).text();
     setTable(tableFromText(text), 'sample-tally.csv (synthetic)');

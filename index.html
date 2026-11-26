@@ -23,20 +23,30 @@
       <p class="sub">Revit model × Tally results</p>
     </header>
 
-    <section class="block">
-      <div class="loaders">
-        <label class="btn">
+    <details class="block mdata" id="modelData">
+      <summary>
+        <span class="md-ttl">Model data</span>
+        <span class="md-sum" id="mdSum"></span>
+        <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </summary>
+      <div class="zones">
+        <label class="zone" id="ifcZone">
           <input type="file" id="ifcInput" accept=".ifc" hidden>
-          <span class="btn-title">Load model</span><span class="btn-hint">.ifc from Revit</span>
+          <span class="z-k">Revit model</span>
+          <span class="z-file" id="ifcFile"></span>
+          <span class="z-meta" id="ifcMeta"></span>
+          <span class="z-cta" id="ifcCta">Click or drop an .ifc file</span>
         </label>
-        <label class="btn">
+        <label class="zone" id="dataZone">
           <input type="file" id="dataInput" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm" hidden>
-          <span class="btn-title">Load results</span><span class="btn-hint">Tally .csv / .xlsx</span>
+          <span class="z-k">Tally results</span>
+          <span class="z-file" id="dataFile"></span>
+          <span class="z-meta" id="dataMeta"></span>
+          <span class="z-cta">Click or drop a .csv or .xlsx file</span>
         </label>
       </div>
-      <div id="sources" class="sources"></div>
-      <button id="demoBtn" class="link">Reset to demo building</button>
-    </section>
+      <button id="demoBtn" class="link">Reset to demo</button>
+    </details>
 
     <section class="block" id="summary"></section>
     <section class="block ecard" id="elCard" hidden></section>
