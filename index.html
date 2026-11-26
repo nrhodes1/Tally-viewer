@@ -48,6 +48,14 @@
       <button id="demoBtn" class="link">Reset to demo</button>
     </details>
 
+    <details class="block fold" id="summary" open>
+      <summary>
+        <span class="md-ttl">Summary</span>
+        <span class="md-sum" id="summarySum"></span>
+        <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </summary>
+      <div id="summaryBody"></div>
+    </details>
     <details class="block fold" id="scenarioBlock" open hidden>
       <summary>
         <span class="md-ttl">Scenario</span>
@@ -56,14 +64,6 @@
       </summary>
       <label for="scenarioSel" class="sr-only">Scenario</label>
       <select id="scenarioSel" class="select"></select>
-    </details>
-    <details class="block fold" id="summary" open>
-      <summary>
-        <span class="md-ttl">Summary</span>
-        <span class="md-sum" id="summarySum"></span>
-        <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </summary>
-      <div id="summaryBody"></div>
     </details>
     <section class="block ecard" id="elCard" hidden></section>
 
