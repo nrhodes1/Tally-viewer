@@ -179,9 +179,11 @@ button { font: inherit; color: inherit; }
   #panel { grid-row: 2; border-right: 0; overflow: visible; }
   #legend { left: 10px; bottom: 10px; width: calc(100% - 20px); padding: 8px 12px; }
   #card {
-    transform: none !important; top: 8px; left: 8px; right: 8px; width: auto;
-    max-height: calc(100% - 16px); overflow-y: auto; padding: 10px 12px; font-size: 11.5px;
+    transform: none !important; top: auto; bottom: 10px; left: 10px; right: 10px; width: auto;
+    max-height: calc(100% - 20px); overflow-y: auto; padding: 10px 12px; font-size: 11.5px;
   }
+  /* The element card takes the legend's place; closing it brings the legend back. */
+  #stage:has(#card:not([hidden])) #legend { display: none; }
   #card .hero { margin-top: 6px; }
   #card .hero .v { font-size: 19px; }
 }
