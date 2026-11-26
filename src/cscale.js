@@ -14,9 +14,7 @@
 import { norm, num } from './data.js';
 
 const OPERATIONAL = /electric|fossil|energy|operational/i;
-const BIO = /timber|lumber|plywood|\bwood|\bclt\b|\bglt\b|glulam|\blvl\b|\bosb\b|bamboo|straw|hemp|cork|cellulose|mass timber/i;
 const AREA_UNITS = /^(ft²|ft2|sf|sq\.? ?ft|m²|m2|sq\.? ?m|yd²|yd2|sy)$/;
-const TO_M3 = { cy: 0.764555, yd3: 0.764555, 'yd³': 0.764555, m3: 1, 'm³': 1, ft3: 0.0283168, 'ft³': 0.0283168, cf: 0.0283168, bf: 0.00235974 };
 
 const findHeader = (grid, res) => grid.findIndex((row) => res.every((re) => row.some((c) => re.test(String(c).trim()))));
 const col = (H, re) => H.findIndex((h) => re.test(String(h).trim()));
@@ -99,7 +97,6 @@ export function parseCScale({ takeoffs, categories }) {
     }
     const rows = takeRows.get(scen);
     const covered = new Set();
-    const bio = [];
 
     if (rows?.length) {
       for (const r of rows) {
@@ -122,7 +119,6 @@ export function parseCScale({ takeoffs, categories }) {
         const sh = share.get(system.toLowerCase());
         if (sh) for (const [s, f] of Object.entries(sh)) mat.stages[s] = (mat.stages[s] || 0) + r.total * f;
         else mat.stages.Total = (mat.stages.Total || 0) + r.total;
-        if (BIO.test(r.mat)) bio.push({ mat, m3: TO_M3[r.unit] ? r.qty * TO_M3[r.unit] : 0, total: r.total });
       }
     } else {
       // No takeoffs for this scenario: one record per category (Structure, Enclosure, ...).
@@ -143,17 +139,13 @@ export function parseCScale({ takeoffs, categories }) {
         materials: new Map([[cat, { stages: { ...stages }, biogenic: 0, mass: 0 }]]) });
     }
 
-    // Stored carbon: spread across bio-based materials by volume (or by emissions if no volumes).
+    // Stored carbon: C.Scale gives one figure per scenario and doesn't say which
+    // materials it comes from, so it is reported as a project-level line, not
+    // assigned to elements.
     const st = stored.get(scen) || 0;
     if (st) {
-      const vol = bio.reduce((a, b) => a + b.m3, 0);
-      const em = bio.reduce((a, b) => a + b.total, 0);
-      if (bio.length && (vol > 0 || em > 0)) {
-        for (const b of bio) b.mat.biogenic += st * (vol > 0 ? b.m3 / vol : b.total / em);
-      } else {
-        types.set('proj:stored', { key: 'proj:stored', kind: 'project', category: 'Project', family: '', type: 'Stored carbon (not itemized)', system: 'Other',
-          materials: new Map([['Stored carbon', { stages: {}, biogenic: st, mass: 0 }]]) });
-      }
+      types.set('proj:stored', { key: 'proj:stored', kind: 'project', category: 'Project', family: '', type: 'Stored carbon (not itemized)', system: 'Other',
+        materials: new Map([['Stored carbon', { stages: {}, biogenic: st, mass: 0 }]]) });
     }
 
     // Totals per subsection, and how to spread them over elements: by area when most
@@ -181,7 +173,7 @@ export function parseCScale({ takeoffs, categories }) {
     });
   }
   if (stageLabels.length && takeRows.size) notes.push('Stage split for each material follows its category totals in "Category by Stage".');
-  if (stored.size) notes.push('Stored carbon is spread across wood-based materials by volume.');
+  if (stored.size) notes.push('Stored carbon is shown as a project total. C.Scale does not say which materials it comes from, so it is not assigned to elements.');
   return { sets, notes };
 }
 

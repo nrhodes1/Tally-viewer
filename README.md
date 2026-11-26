@@ -66,7 +66,7 @@ The viewer also reads the workbook C.Scale exports (Project Summary, Category by
 - Otherwise every element in a subsection gets the same intensity.
 - Subsections that C.Scale quantifies per ft² or m² (walls, roofs, ceilings, flooring, glazing) are split across elements by face area. The rest are split by volume.
 - Takeoffs give one whole-life total per material. The viewer splits it across life-cycle stages using that category's proportions in Category by Stage.
-- Stored carbon is reported once per scenario. The viewer spreads it across wood-based materials by volume.
+- Stored carbon is reported once per scenario, with no breakdown by material. The viewer shows it in Summary as "Biogenic storage · not itemized" and doesn't assign it to any element, so the model shows emissions only.
 - Operational energy is left out. Construction activities, demolition, refrigerants and services show under unmatched results.
 - A scenario with no takeoffs is matched by category only (Structure, Enclosure, Interiors).
 

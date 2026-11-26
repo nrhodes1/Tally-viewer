@@ -340,12 +340,16 @@ function compute() {
     }
   }
   // Results in the export that never matched the model still count toward its total.
-  let unmatchedNet = 0, unmatchedTypes = 0;
+  let unmatchedNet = 0, unmatchedTypes = 0, projectStorage = 0;
   const src = leafRecords();
-  for (const rec of src) if (!groups.has(rec.key)) { unmatchedNet += evalRecord(rec, stages, state.biogenic).net; unmatchedTypes++; }
+  for (const rec of src) if (!groups.has(rec.key)) {
+    const ev = evalRecord(rec, stages, state.biogenic);
+    unmatchedNet += ev.net; unmatchedTypes++;
+    if (rec.kind === 'project') projectStorage += ev.biogenic; // e.g. C.Scale stored carbon, not itemized
+  }
 
   state.groups = groups;
-  state.totals = { net, emissions, storage, matchedEls, unmatchedNet, unmatchedTypes, totalTypes: src.length };
+  state.totals = { net, emissions, storage, projectStorage, matchedEls, unmatchedNet, unmatchedTypes, totalTypes: src.length };
 
   // Color scale: clip each side at the chosen percentile of the element values.
   const vals = model.elements.filter((e) => e.rec).map((e) => e.value);
@@ -462,7 +466,9 @@ function renderSidebar() {
       <div class="stat big"><div class="k">Net embodied carbon</div>
         <div class="v ${signCls(totals.net)}">${net.n}<small>${net.u}</small></div></div>
       <div class="stat"><div class="k">Emissions</div><div class="v pos">${em.n}<small>${em.u}</small></div></div>
-      <div class="stat"><div class="k">Biogenic storage</div><div class="v neg">${st.n}<small>${st.u}</small></div></div>
+      ${totals.projectStorage && !totals.storage
+        ? `<div class="stat"><div class="k">Biogenic storage · not itemized</div><div class="v neg">${fmtMass(totals.projectStorage).n}<small>${fmtMass(totals.projectStorage).u}</small></div></div>`
+        : `<div class="stat"><div class="k">Biogenic storage</div><div class="v neg">${st.n}<small>${st.u}</small></div></div>`}
       <div class="stat"><div class="k">Elements matched</div><div class="v">${pct}<small>% of ${model.elements.length.toLocaleString()}</small></div></div>
       <div class="stat"><div class="k">Unmatched results</div><div class="v">${totals.unmatchedTypes}<small>${totals.unmatchedTypes ? fmtMassStr(totals.unmatchedNet, { sign: true }) : 'types'}</small></div></div>
     </div>`;
