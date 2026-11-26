@@ -1,4 +1,4 @@
-# Carbon Hotspot Viewer
+# Embodied Carbon Viewer
 
 A browser viewer that colors a Revit model by its embodied-carbon results from Tally (C.Scale), so you can spot hotspots at a glance.
 
