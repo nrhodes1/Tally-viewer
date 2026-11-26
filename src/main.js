@@ -5,6 +5,7 @@ import {
   readTableFile, tableFromText, buildDataSets, evalRecord, detectColumns, norm, typeKey,
 } from './data.js';
 import { mergeMaterials } from './cscale.js';
+import { VERSION } from './version.js';
 import { divergingColor, cssColor, gradientCSS, percentile } from './color.js';
 
 const $ = (s) => document.querySelector(s);
@@ -817,11 +818,20 @@ settings.addEventListener('click', (e) => { if (e.target === settings) settings.
 // ------------------------------------------------------------------ file loading
 const statusEl = $('#status');
 let statusTimer;
-function status(msg, { error = false, sticky = false } = {}) {
+// progress: undefined = no ring, null = spinning ring, 0..1 = filled ring with percentage.
+function status(msg, { error = false, sticky = false, progress } = {}) {
   clearTimeout(statusTimer);
   statusEl.hidden = !msg;
-  statusEl.textContent = msg || '';
   statusEl.classList.toggle('err', error);
+  if (progress === undefined) { statusEl.textContent = msg || ''; }
+  else {
+    const pct = progress === null ? null : Math.round(progress * 100);
+    statusEl.innerHTML = `<svg class="ring ${pct === null ? 'spin' : ''}" viewBox="0 0 20 20" aria-hidden="true">
+        <circle class="trk" cx="10" cy="10" r="8"/>
+        <circle class="arc" cx="10" cy="10" r="8" pathLength="100" stroke-dasharray="${pct === null ? 28 : pct} 100" transform="rotate(-90 10 10)"/>
+      </svg><span>${esc(msg)}</span>${pct === null ? '' : `<b class="pct">${pct}%</b>`}`;
+    statusEl.setAttribute('role', 'status');
+  }
   if (msg && !sticky) statusTimer = setTimeout(() => (statusEl.hidden = true), error ? 9000 : 3500);
 }
 
@@ -830,8 +840,8 @@ async function handleFile(file) {
   try {
     if (n.endsWith('.ifc')) {
       if ($('#ifcZone').classList.contains('disabled')) { status('IFC upload is in the full version only', { error: true }); return; }
-      status('Loading model…', { sticky: true });
-      const model = await loadIfcModel(file, (m) => status(m, { sticky: true }));
+      status('Reading file…', { sticky: true, progress: null });
+      const model = await loadIfcModel(file, (m, p) => status(m, { sticky: true, progress: p }));
       setModel(model);
       state.modelFile = { name: file.name, at: new Date() };
       refresh();
@@ -889,6 +899,7 @@ async function loadDemo() {
 $('#demoBtn').addEventListener('click', loadDemo);
 
 // ------------------------------------------------------------------ boot
+$('#version').textContent = VERSION;
 resize();
 applyTheme();
 loadDemo();

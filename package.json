@@ -5,6 +5,5 @@
   "scripts": {
     "samples": "node tools/make-samples.mjs",
     "start": "npx --yes serve -l 8080 ."
-  },
-  "version": "1.0.0"
+  }
 }

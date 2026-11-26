@@ -171,6 +171,15 @@ button { font: inherit; color: inherit; }
   box-shadow: var(--shadow); border-radius: 999px; padding: 8px 16px; font-size: 12.5px; max-width: calc(100% - 32px);
 }
 #status.err { color: #b3261e; }
+#status:has(.ring) { display: flex; align-items: center; gap: 8px; }
+#status .ring { width: 16px; height: 16px; flex: none; }
+#status .ring circle { fill: none; stroke-width: 2.6; }
+#status .ring .trk { stroke: var(--line); }
+#status .ring .arc { stroke: var(--ink); stroke-linecap: round; transition: stroke-dasharray .2s; }
+#status .ring.spin { animation: ring-spin .9s linear infinite; }
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #status .ring.spin { animation-duration: 3s; } }
+#status .pct { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 3ch; text-align: right; }
 #dropHint {
   position: absolute; inset: 12px; border: 2px dashed var(--ink-3); border-radius: 16px;
   display: grid; place-items: center; background: color-mix(in srgb, var(--viewport) 85%, transparent);

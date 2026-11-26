@@ -109,6 +109,19 @@ The viewer measures volume and face area from the mesh. Face area is the largest
 - **Outlier clipping:** each side of the scale is capped at a percentile (95th by default), so one huge slab doesn't wash out everything else. Elements past the cap show at full color.
 - **Same scale:** by default, green and red scale independently, so storage stays visible next to large emissions. Tick this to put both on one scale for a like-for-like comparison.
 
+## Versioning
+
+The git tag is the version. The subtitle under the title shows it, read from `src/version.js`. That file is written by the release script, so it always matches the tag on the same commit. Commit and tag with:
+
+```bash
+node tools/release.mjs patch "What changed"   # v0.1.0 -> v0.1.1
+node tools/release.mjs minor "What changed"   # v0.1.3 -> v0.2.0
+node tools/release.mjs major "What changed"   # v0.4.2 -> v1.0.0
+git push --follow-tags
+```
+
+Commits made without the script show the previous release's version until the next release.
+
 ## Files
 
 ```

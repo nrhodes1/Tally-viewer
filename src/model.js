@@ -99,10 +99,14 @@ function splitFamilyType(s) {
 }
 
 export async function loadIfcModel(file, onProgress = () => {}) {
-  onProgress('Loading IFC engine…');
-  const { api, WebIFC } = await getIfcApi();
-  onProgress('Parsing IFC…');
+  // onProgress(message, fraction): fraction in 0..1, or null while the step can't be measured.
+  const paint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+  onProgress('Reading file…', null);
   const data = new Uint8Array(await file.arrayBuffer());
+  onProgress('Loading IFC engine…', null);
+  const { api, WebIFC } = await getIfcApi();
+  onProgress('Parsing IFC…', null);
+  await paint();
   const modelID = api.OpenModel(data, { COORDINATE_TO_ORIGIN: true });
 
   // Element -> type object (IfcRelDefinesByType), for type names when ObjectType is empty.
@@ -117,9 +121,14 @@ export async function loadIfcModel(file, onProgress = () => {}) {
   const elements = [];
   const tmpM = new THREE.Matrix4(), tmpN = new THREE.Matrix3();
   const v = new THREE.Vector3(), nrm = new THREE.Vector3();
-  let count = 0;
-
-  api.StreamAllMeshes(modelID, (flat) => {
+  // Build geometry in batches so the page can repaint and show progress between them.
+  const ids = [];
+  for (const t of api.GetIfcEntityList(modelID)) {
+    if (!api.IsIfcElement(t)) continue;
+    const v = api.GetLineIDsWithType(modelID, t);
+    for (let i = 0; i < v.size(); i++) ids.push(v.get(i));
+  }
+  const onMesh = (flat) => {
     const expressID = flat.expressID;
     const cls = String(api.GetNameFromTypeCode(api.GetLineType(modelID, expressID)) || '').toUpperCase();
     if (SKIP_CLASSES.has(cls)) return;
@@ -168,8 +177,14 @@ export async function loadIfcModel(file, onProgress = () => {}) {
       globalId: val(line.GlobalId) || null,
       ifcClass: cls, name: val(line.Name) || `${ft.family}: ${ft.type}`,
     }));
-    if (++count % 200 === 0) onProgress(`Building meshes… ${count}`);
-  });
+  };
+  const BATCH = 300;
+  for (let i = 0; i < ids.length; i += BATCH) {
+    onProgress('Building geometry…', i / ids.length);
+    await paint();
+    api.StreamMeshes(modelID, ids.slice(i, i + BATCH), onMesh);
+  }
+  onProgress('Building geometry…', 1);
 
   api.CloseModel(modelID);
   return { elements, name: file.name };
