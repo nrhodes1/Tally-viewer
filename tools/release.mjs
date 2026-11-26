@@ -9,7 +9,7 @@
 // Stages all changes, writes src/version.js, commits, and tags the commit.
 // Push with: git push --follow-tags
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -22,8 +22,16 @@ if (!message) {
   process.exit(1);
 }
 
+// Latest version: the newest v* tag, or src/version.js if this clone has no tags
+// (e.g. tags weren't pushed), whichever is higher.
+const parse = (v) => (v || '').replace(/^v/, '').split('.').map(Number);
+const newer = (a, b) => { const x = parse(a), y = parse(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0) ? a : b; return a; };
 let last = 'v0.0.0';
 try { last = git('describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*'); } catch { /* no tags yet */ }
+try {
+  const file = readFileSync(join(root, 'src/version.js'), 'utf8').match(/VERSION = '(v\d+\.\d+\.\d+)'/)?.[1];
+  if (file) last = newer(file, last);
+} catch { /* no version file yet */ }
 const [maj, min, pat] = last.replace(/^v/, '').split('.').map(Number);
 const next = /^v?\d+\.\d+\.\d+$/.test(bump) ? `v${bump.replace(/^v/, '')}`
   : bump === 'major' ? `v${maj + 1}.0.0`
