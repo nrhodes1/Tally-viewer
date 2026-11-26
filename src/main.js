@@ -189,6 +189,9 @@ function match() {
 function subsectionHints(el, sys) {
   const c = String(el.category || '').toLowerCase();
   const t = `${el.family} ${el.type}`.toLowerCase();
+  if (sys === 'sitework') return [/hardscape|paving/, /landscape|planting/];
+  if (/floor/.test(c) && sys === 'interiors') return [/flooring|floor finish/];
+  if (/floor/.test(c) && sys === 'enclosure') return [/roof/];
   if (/foundation/.test(c)) return [/foundations?$/, /foundation/];
   if (/floor|slab/.test(c)) return /grade|\bsog\b/.test(t) ? [/on.?grade/, /slab/] : [/slabs?\/decks?|deck|suspended/, /floor|slab/];
   if (/column/.test(c)) return [/column/, /frame|framing/, /slabs?\/decks?|deck/];
@@ -257,7 +260,7 @@ function compute() {
 function tOf(v) { return v >= 0 ? v / state.scale.pos : v / state.scale.neg; }
 
 // Building systems, as Tally reports group results (Structure / Enclosure / Interiors).
-const SYSTEMS = ['Structure', 'Enclosure', 'Interiors', 'Other'];
+const SYSTEMS = ['Structure', 'Enclosure', 'Interiors', 'Services', 'Sitework', 'Other'];
 function systemOf(rec) {
   if (rec.system) {
     const s = rec.system.toLowerCase();
@@ -268,6 +271,10 @@ function systemOf(rec) {
   }
   const c = String(rec.category || '').toLowerCase();
   const t = `${rec.family} ${rec.type}`.toLowerCase();
+  // Site, finish and roof-terrace floors are modeled as Revit floors but aren't structure.
+  if (/floor|wall/.test(c) && /\b(sidewalk|hardscape|landscape|lawn|paving|planter)\b/.test(t)) return 'Sitework';
+  if (/floor/.test(c) && /\b(finish floor|laminate|carpet|tile|terrazz?o|vinyl|polished|flooring)\b/.test(t)) return 'Interiors';
+  if (/floor/.test(c) && /\broof\s*-/.test(t)) return 'Enclosure';
   if (/structural|foundation|^floors?$|^columns?$|framing|rebar|truss|^beams?$|^slabs?$/.test(c)) return 'Structure';
   if (/curtain|window|roof|skylight|facade|fascia|soffit|gutter/.test(c)) return 'Enclosure';
   if (/wall/.test(c)) {
