@@ -111,7 +111,9 @@ export function parseCScale({ takeoffs, categories }) {
         if (!types.has(key)) types.set(key, { key, kind: 'subsection', category: system, family: '', type: label, system, subsection: r.sub, groups: new Map(), materials: new Map(), areaEm: 0, otherEm: 0 });
         const rec = types.get(key);
         // Materials are kept per assembly so a subsection can later be split by assembly.
-        const gname = r.asm || '';
+        // No assembly name (typical for structure): each material is its own group.
+        const gname = r.asm || r.mat;
+        if (!r.asm) rec.byMaterial = true;
         if (!rec.groups.has(gname)) rec.groups.set(gname, { name: gname, materials: new Map() });
         const gmats = rec.groups.get(gname).materials;
         if (!gmats.has(r.mat)) gmats.set(r.mat, { stages: {}, biogenic: 0, mass: 0 });
@@ -158,8 +160,18 @@ export function parseCScale({ takeoffs, categories }) {
     // of the subsection's carbon is quantified per ft² / m², otherwise by volume.
     for (const rec of types.values()) {
       if (rec.kind !== 'subsection') continue;
+      if (rec.byMaterial) {
+        // Rebar travels with the concrete it reinforces.
+        const concrete = [...rec.groups.values()].find((g) => /concrete/i.test(g.name));
+        for (const g of [...rec.groups.values()]) {
+          if (concrete && g !== concrete && /rebar|reinforc/i.test(g.name)) {
+            concrete.materials = mergeMaterials([concrete.materials, g.materials]);
+            rec.groups.delete(g.name);
+          }
+        }
+      }
       rec.materials = mergeMaterials([...rec.groups.values()].map((g) => g.materials));
-      rec.family = [...rec.groups.keys()].filter(Boolean).join(' / ');
+      rec.family = rec.byMaterial ? '' : [...rec.groups.keys()].join(' / ');
       rec.basis = rec.areaEm > rec.otherEm ? 'area' : 'volume';
     }
 

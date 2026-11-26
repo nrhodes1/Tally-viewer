@@ -207,11 +207,13 @@ function keywords(text) {
   for (const [re, r] of SYNONYMS) s = s.replace(re, r);
   return new Set(s.split(/[^a-z]+/).filter((t) => t.length > 2 && !STOPWORDS.has(t)));
 }
+const FRAMING_MAT = /glue.?lam|glulam|\bglt\b|structural steel|hot.?rolled|hrsss|\blvl\b|\bpsl\b|beam|column/i;
+const PANEL_MAT = /cross.?lam|\bclt\b|concrete|plywood|lumber|deck|\bosb\b|joist|\bnlt\b|\bdlt\b|topping/i;
 function splitByAssembly() {
   const { data, model } = state;
   const parents = new Map();
   for (const el of model.elements) {
-    if (el.rec?.kind === 'subsection' && el.rec.groups?.size > 1 && !el.rec.groups.has('')) {
+    if (el.rec?.kind === 'subsection' && el.rec.groups?.size > 1) {
       if (!parents.has(el.rec)) parents.set(el.rec, []);
       parents.get(el.rec).push(el);
     }
@@ -220,21 +222,29 @@ function splitByAssembly() {
   const cache = data._derived || (data._derived = new Map());
   const leaf = (parent, name, mats) => {
     const key = `${parent.key}|asm:${norm(name)}`;
-    if (!cache.has(key)) cache.set(key, { ...parent, key, family: name, parent: parent.key, groups: null, materials: mats });
+    if (!cache.has(key)) cache.set(key, { ...parent, key, family: name, parent: parent.key, groups: null, materials: mats, byMaterial: parent.byMaterial });
     return cache.get(key);
   };
   for (const [parent, els] of parents) {
-    const groups = [...parent.groups.values()].map((g) => ({ ...g, words: keywords(`${g.name} ${[...g.materials.keys()].join(' ')}`), els: [] }));
+    const groups = [...parent.groups.values()].map((g) => ({
+      ...g, words: keywords(`${g.name} ${[...g.materials.keys()].join(' ')}`), els: [],
+      kind: FRAMING_MAT.test(g.name) ? 'framing' : PANEL_MAT.test(g.name) ? 'panel' : '',
+      size: [...g.materials.values()].reduce((a, m) => a + Math.abs(Object.values(m.stages).reduce((x, y) => x + y, 0)), 0),
+    }));
     const rest = [];
     for (const el of els) {
       const words = keywords(`${el.family} ${el.type}`);
-      let best = null, bestScore = 0, tie = false;
+      const elKind = /column|framing|beam|truss|brace/i.test(el.category) ? 'framing' : /floor|slab|roof|deck/i.test(el.category) ? 'panel' : '';
+      // Score: shared keywords count double; the material suiting the element's category adds one.
+      // Ties go to the larger group.
+      let best = null, bestScore = 0;
       for (const g of groups) {
         let score = 0;
-        for (const w of words) if (g.words.has(w)) score++;
-        if (score > bestScore) { best = g; bestScore = score; tie = false; } else if (score && score === bestScore) tie = true;
+        for (const w of words) if (g.words.has(w)) score += 2;
+        if (parent.byMaterial && elKind && g.kind === elKind) score += 1;
+        if (score > bestScore || (score && score === bestScore && g.size > best.size)) { best = g; bestScore = score; }
       }
-      if (best && !tie) best.els.push(el); else rest.push(el);
+      if (best) best.els.push(el); else rest.push(el);
     }
     const claimed = groups.filter((g) => g.els.length);
     if (!claimed.length) continue; // nothing to go on: keep the subsection whole
@@ -242,7 +252,7 @@ function splitByAssembly() {
     const leaves = [];
     for (const g of claimed) {
       const r = leaf(parent, g.name, g.materials);
-      for (const el of g.els) { el.rec = r; el.matchedBy = 'Assembly'; }
+      for (const el of g.els) { el.rec = r; el.matchedBy = parent.byMaterial ? 'Material' : 'Assembly'; }
       leaves.push(r);
     }
     if (unclaimed.length && rest.length) {
@@ -291,7 +301,7 @@ function subsectionHints(el, sys) {
   if (/railing/.test(c)) return [/railing/];
   if (/casework|furniture|millwork/.test(c)) return [/casework|millwork|furni/];
   if (/wall/.test(c)) {
-    if (sys === 'structure') return /foundation|basement|retaining/.test(t) ? [/foundation wall|retaining|basement/] : [/shear|core|structural wall|bearing wall/];
+    if (sys === 'structure') return /foundation|basement|retaining/.test(t) ? [/foundation wall|retaining|basement/, /foundation/] : [/shear|core|structural wall|bearing wall/];
     if (sys === 'enclosure') return [/exterior wall|facade|cladding/, /wall/];
     return [/partition/, /interior wall/, /wall/];
   }
@@ -653,13 +663,13 @@ function cardHTML(el, mode = 'full') {
   const body = `<div class="kv">
       <span>Intensity</span><span>${fmtMetric(g.perArea, 'area', { sign: true }).n} kg/m² · ${fmtMetric(g.perVolume, 'volume', { sign: true }).n} kg/m³</span>
       ${g.rec.kind ? `<span>Group</span><span>${esc(g.rec.kind === 'subsection' ? `${g.rec.system} › ${g.rec.type}` : g.rec.type)}</span>` : ''}
-      ${g.rec.kind === 'subsection' && g.rec.family ? `<span>C.Scale assembly</span><span>${esc(g.rec.family)}</span>` : ''}
+      ${g.rec.kind === 'subsection' && g.rec.family ? `<span>C.Scale ${g.rec.byMaterial ? 'material' : 'assembly'}</span><span>${esc(g.rec.family)}</span>` : ''}
       <span>${g.rec.kind ? 'Group' : 'Type'} total · ${g.els.length} el.</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
       ${g.ev.emissions > 0 ? `<span>Share of emissions</span><span>${fmtNum(shareEm, 1)}%</span>` : ''}
       ${g.ev.biogenic < 0 ? `<span>Share of storage</span><span>${fmtNum(shareSt, 1)}%</span>` : ''}
       ${idLine}${qty}
     </div>${matHTML}
-    ${el.matchedBy && !['Category + Family + Type', 'Element ID', 'Building subsection', 'Assembly'].includes(el.matchedBy) ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
+    ${el.matchedBy && !['Category + Family + Type', 'Element ID', 'Building subsection', 'Assembly', 'Material'].includes(el.matchedBy) ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
   return h + hero + (inline ? `<div class="more">${body}</div>` : body);
 }
 
