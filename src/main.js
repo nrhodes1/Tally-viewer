@@ -436,6 +436,14 @@ function fmtMass(v, { sign = false } = {}) {
   return { n: s + a.toLocaleString(undefined, { maximumFractionDigits: a >= 10 ? 0 : 1 }), u: 'kgCO₂e' };
 }
 const fmtMassStr = (v, o) => { const f = fmtMass(v, o); return `${f.n} ${f.u}`; };
+// Always tonnes (used on the element card so every value there shares one unit).
+function fmtTonnes(kg, { sign = false } = {}) {
+  const t = kg / 1000, a = Math.abs(t);
+  const s = sign && t > 0 ? '+' : t < 0 ? '−' : '';
+  if (a > 0 && a < 0.001) return { n: `${s}<0.001`, u: 'tCO₂e' };
+  const d = a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : 3;
+  return { n: s + a.toLocaleString(undefined, { maximumFractionDigits: d }), u: 'tCO₂e' };
+}
 function fmtMetric(v, metric = state.metric, o) {
   if (metric === 'absolute') return fmtMass(v, o);
   const a = Math.abs(v);
@@ -651,16 +659,16 @@ function cardHTML(el, mode = 'full') {
     return h + (inline ? `<div class="more">${body}</div>` : body);
   }
   const col = cssColor(tOf(el.value));
-  const abs = fmtMass(el.abs, { sign: true });
+  const abs = fmtTonnes(el.abs, { sign: true });
   const shareEm = state.totals.emissions ? ((g.ev.emissions * el.share) / state.totals.emissions) * 100 : 0;
   const shareSt = state.totals.storage ? ((g.ev.biogenic * el.share) / state.totals.storage) * 100 : 0;
   const mats = g.ev.materials;
   const mMax = Math.max(1e-9, ...mats.map((m) => Math.abs(m.value)));
-  const matHTML = mats.length > 1 || (mats[0] && mats[0].name !== 'Assembly') ? `<div class="mats"><div class="h">Assembly</div>${mats.map((m) => {
+  const matHTML = mats.length > 1 || (mats[0] && mats[0].name !== 'Assembly') ? `<div class="mats"><div class="h">Assembly · tCO₂e</div>${mats.map((m) => {
     const w = (Math.abs(m.value) / mMax) * 50;
     const c = cssColor(Math.sign(m.value) * Math.max(0.35, Math.abs(m.value) / mMax));
     const pos = m.value >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
-    return `<div class="mat"><span class="n" title="${esc(m.name)}">${esc(m.name)}</span><span class="x ${signCls(m.value)}">${fmtMassStr(m.value * el.share, { sign: true }).replace('CO₂e', '')}</span>
+    return `<div class="mat"><span class="n" title="${esc(m.name)}">${esc(m.name)}</span><span class="x ${signCls(m.value)}">${fmtTonnes(m.value * el.share, { sign: true }).n}</span>
       <span class="b"><i style="${pos};background:${c}"></i><span class="zero" style="left:50%"></span></span></div>`;
   }).join('')}</div>` : '';
   const h = head(col, `<span class="hv ${signCls(el.abs)}">${abs.n}<small>${abs.u}</small></span>`);
@@ -670,7 +678,7 @@ function cardHTML(el, mode = 'full') {
       <span>Intensity</span><span>${fmtMetric(g.perArea, 'area', { sign: true }).n} kg/m² · ${fmtMetric(g.perVolume, 'volume', { sign: true }).n} kg/m³</span>
       ${g.rec.kind ? `<span>Group</span><span>${esc(g.rec.kind === 'subsection' ? `${g.rec.system} › ${g.rec.type}` : g.rec.type)}</span>` : ''}
       ${g.rec.kind === 'subsection' && g.rec.family ? `<span>C.Scale ${g.rec.byMaterial ? 'material' : 'assembly'}</span><span>${esc(g.rec.family)}</span>` : ''}
-      <span>${g.rec.kind ? 'Group' : 'Type'} total · ${g.els.length} el.</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
+      <span>${g.rec.kind ? 'Group' : 'Type'} total · ${g.els.length} el.</span><span>${fmtTonnes(g.ev.net, { sign: true }).n} tCO₂e</span>
       ${g.ev.emissions > 0 ? `<span>Share of emissions</span><span>${fmtNum(shareEm, 1)}%</span>` : ''}
       ${g.ev.biogenic < 0 ? `<span>Share of storage</span><span>${fmtNum(shareSt, 1)}%</span>` : ''}
       ${idLine}${qty}
