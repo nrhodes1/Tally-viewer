@@ -1,2 +1,2 @@
-// Written by tools/release.mjs. The git tag v0.2.7 is the source of truth.
-export const VERSION = 'v0.2.7';
+// Written by tools/release.mjs. The git tag v0.3.0 is the source of truth.
+export const VERSION = 'v0.3.0';

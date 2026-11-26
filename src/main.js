@@ -134,11 +134,18 @@ function startFadeIn() {
   });
 }
 const modelBox = new THREE.Box3();
+// One-line summary of View options when collapsed, e.g. "Total · cut 6.2 m".
+function updateViewSum() {
+  const parts = [{ absolute: 'Total', area: 'per m²', volume: 'per m³' }[state.metric]];
+  if (state.cut < 1) parts.push(`cut ${$('#cutVal').textContent}`);
+  if (state.clip < 100) parts.push(`clip p${state.clip}`);
+  $('#cutSum').textContent = parts.join(' · ');
+}
 function applyCut() {
   const h = modelBox.isEmpty() ? 1e9 : modelBox.min.y + (modelBox.max.y - modelBox.min.y) * state.cut + 1e-3;
   cutPlane.constant = state.cut >= 1 ? 1e9 : h;
   $('#cutVal').textContent = state.cut >= 1 ? 'off' : `${fmtNum(h - modelBox.min.y, 1)} m`;
-  $('#cutSum').textContent = $('#cutVal').textContent;
+  updateViewSum();
 }
 
 // ------------------------------------------------------------------ data
@@ -548,6 +555,7 @@ function renderSidebar() {
   // Metric
   document.querySelectorAll('#metricSeg button').forEach((b) => b.classList.toggle('on', b.dataset.metric === state.metric));
   $('#metricNote').textContent = METRIC_NOTES[state.metric];
+  updateViewSum();
 
   // Stages
   $('#stageChips').innerHTML = (data?.stages || []).map((s) =>
@@ -602,7 +610,7 @@ function renderSidebar() {
       </button>
       <ol>${list.map(row).join('')}</ol>
     </section>`;
-  }).join('') || '<p class="note">No matches. See Settings › Matching.</p>';
+  }).join('') || '<p class="note">No matches. Click ⓘ above for matching and columns.</p>';
 
   renderDiagnostics();
 }
@@ -841,7 +849,7 @@ card.addEventListener('click', (e) => {
 });
 elCard.addEventListener('click', (e) => { if (e.target.closest('.close')) clearPin(); });
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !$('#settings').open) { state.isolate = null; clearPin(); renderSidebar(); }
+  if (e.key === 'Escape' && !$('#matchDialog').open) { state.isolate = null; clearPin(); renderSidebar(); }
 });
 
 // ------------------------------------------------------------------ controls
@@ -889,12 +897,12 @@ $('#scenarioSel').addEventListener('change', (e) => {
   refresh();
 });
 
-// ------------------------------------------------------------------ settings sheet
-const settings = $('#settings');
-$('#settingsBtn').addEventListener('click', () => settings.showModal());
-$('#settingsClose').addEventListener('click', () => settings.close());
+// ------------------------------------------------------------------ matching & columns sheet
+const matchDialog = $('#matchDialog');
+$('#matchInfo').addEventListener('click', () => matchDialog.showModal());
+$('#matchClose').addEventListener('click', () => matchDialog.close());
 // Tapping the dimmed backdrop (outside the sheet) closes it.
-settings.addEventListener('click', (e) => { if (e.target === settings) settings.close(); });
+matchDialog.addEventListener('click', (e) => { if (e.target === matchDialog) matchDialog.close(); });
 
 // ------------------------------------------------------------------ file loading
 const statusEl = $('#status');

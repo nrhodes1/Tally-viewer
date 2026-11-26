@@ -69,13 +69,29 @@
 
     <details class="block fold" id="cutBlock" open>
       <summary>
-        <span class="md-ttl">Section cut</span>
+        <span class="md-ttl">View options</span>
         <span class="md-sum" id="cutSum"></span>
         <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </summary>
-      <label class="range">Height: <b id="cutVal">off</b>
+      <label class="range">Section cut: <b id="cutVal">off</b>
         <input type="range" id="cutRange" autocomplete="off" min="2" max="100" step="1" value="100">
       </label>
+      <label class="range">Clip outliers: <b id="clipVal">off</b>
+        <input type="range" id="clipRange" autocomplete="off" min="75" max="100" step="1" value="100">
+      </label>
+      <label class="check"><input type="checkbox" id="sharedToggle" autocomplete="off"> Same scale for storage and emissions</label>
+
+      <h3 class="opt-h">Color by</h3>
+      <div class="seg" id="metricSeg" role="radiogroup">
+        <button data-metric="absolute" class="on">Total</button>
+        <button data-metric="area">per m²</button>
+        <button data-metric="volume">per m³</button>
+      </div>
+      <p class="note" id="metricNote"></p>
+
+      <h3 class="opt-h">Life-cycle stages</h3>
+      <div id="stageChips" class="chips"></div>
+      <label class="check"><input type="checkbox" id="bioToggle" autocomplete="off" checked> Include biogenic storage</label>
     </details>
 
     <details class="block fold grow" id="typesBlock" open>
@@ -84,14 +100,16 @@
         <span class="md-sum" id="typesSum"></span>
         <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </summary>
+      <div class="el-tools">
+        <button id="unmatchedBtn" class="btn-ghost" hidden></button>
+        <button id="matchInfo" class="info-btn" aria-label="Matching &amp; columns" title="Matching &amp; columns">i</button>
+      </div>
       <div id="typeList" class="types"></div>
-      <button id="unmatchedBtn" class="btn-ghost" hidden></button>
     </details>
   </aside>
 
   <main id="stage">
     <canvas id="viewport"></canvas>
-    <button id="settingsBtn" class="fab" aria-haspopup="dialog" aria-controls="settings"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></button>
     <div id="legend"></div>
     <div id="start" class="start">
       <div class="start-in">
@@ -118,33 +136,13 @@
   </main>
 </div>
 
-<dialog id="settings" aria-labelledby="settingsTitle">
+<dialog id="matchDialog" aria-labelledby="matchTitle">
   <div class="sheet">
     <header class="sheet-hd">
-      <h2 id="settingsTitle">Settings</h2>
-      <button class="close" id="settingsClose" aria-label="Close settings">×</button>
+      <h2 id="matchTitle">Matching &amp; columns</h2>
+      <button class="close" id="matchClose" aria-label="Close">×</button>
     </header>
     <section class="block">
-      <h2>Color by</h2>
-      <div class="seg" id="metricSeg" role="radiogroup">
-        <button data-metric="absolute" class="on">Total</button>
-        <button data-metric="area">per m²</button>
-        <button data-metric="volume">per m³</button>
-      </div>
-      <p class="note" id="metricNote"></p>
-
-      <h2>Life-cycle stages</h2>
-      <div id="stageChips" class="chips"></div>
-      <label class="check"><input type="checkbox" id="bioToggle" autocomplete="off" checked> Include biogenic storage</label>
-
-      <h2>Scale</h2>
-      <label class="range">Clip outliers: <b id="clipVal">off</b>
-        <input type="range" id="clipRange" autocomplete="off" min="75" max="100" step="1" value="100">
-      </label>
-      <label class="check"><input type="checkbox" id="sharedToggle" autocomplete="off"> Same scale for storage and emissions</label>
-    </section>
-    <section class="block">
-      <h2>Matching &amp; columns</h2>
       <div id="diagBody"></div>
     </section>
   </div>
