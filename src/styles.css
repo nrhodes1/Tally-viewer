@@ -122,18 +122,21 @@ button { font: inherit; color: inherit; }
 #diagBody select { font: inherit; font-size: 12px; width: 100%; padding: 3px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; }
 #diagBody .gwp label { display: flex; gap: 6px; align-items: center; margin: 2px 0; }
 
-/* Legend */
+/* Legend: a quiet strip over the viewport */
 #legend {
-  position: absolute; left: 16px; bottom: 16px; background: var(--card); border-radius: 12px;
-  padding: 10px 14px 10px; box-shadow: var(--shadow); width: min(360px, calc(100% - 32px)); font-size: 11.5px;
+  position: absolute; left: 16px; bottom: 14px; display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; pointer-events: auto;
+  text-shadow: 0 0 3px var(--viewport), 0 0 6px var(--viewport);
 }
-#legend .ttl { display: flex; justify-content: space-between; color: var(--ink-2); margin-bottom: 6px; }
-#legend .ttl b { color: var(--ink); }
-#legend .grad { height: 12px; border-radius: 6px; }
-#legend .ticks { display: flex; justify-content: space-between; margin-top: 4px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
-#legend .ends { display: flex; justify-content: space-between; color: var(--ink-3); margin-top: 1px; }
-#legend .nodata { display: flex; align-items: center; gap: 6px; margin-top: 7px; color: var(--ink-3); }
-#legend .nodata i { width: 12px; height: 12px; border-radius: 3px; background: var(--nodata); }
+#legend .bar { position: relative; width: 150px; height: 6px; border-radius: 3px; }
+#legend .z { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--ink-3); }
+#legend .mk {
+  position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--ink); transform: translate(-50%, -50%); transition: left .15s ease-out;
+  box-shadow: 0 0 0 2px var(--viewport);
+}
+#legend .u { color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { #legend .mk { transition: none; } }
 
 #status {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: var(--card);
@@ -152,38 +155,34 @@ button { font: inherit; color: inherit; }
   box-shadow: var(--shadow); padding: 12px 14px; pointer-events: none; font-size: 12px; z-index: 5;
 }
 #card.pinned { pointer-events: auto; }
-#card .hd { display: flex; gap: 9px; align-items: flex-start; }
-#card .sw { width: 14px; height: 14px; border-radius: 4px; margin-top: 2px; flex: none; }
-#card .tt { font-weight: 650; font-size: 13px; line-height: 1.3; }
-#card .st { color: var(--ink-3); font-size: 11.5px; margin-top: 1px; }
-#card .hero { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 2px; }
-#card .hero .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-#card .hero .u { color: var(--ink-3); }
-#card .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin-top: 8px; font-variant-numeric: tabular-nums; }
-#card .kv span:nth-child(odd) { color: var(--ink-3); }
-#card .kv span:nth-child(even) { text-align: right; }
-#card .mats { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
-#card .mats .h { color: var(--ink-3); font-size: 11px; margin-bottom: 4px; }
-#card .mat { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; margin: 4px 0; }
-#card .mat .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#card .mat .x { text-align: right; font-variant-numeric: tabular-nums; }
-#card .mat .b { grid-column: span 2; height: 4px; background: var(--line); border-radius: 2px; position: relative; }
-#card .mat .b i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
-#card .mat .b .zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
-#card .warn { margin-top: 8px; color: var(--ink-3); font-size: 11.5px; }
-#card .close { position: absolute; top: 6px; right: 8px; border: 0; background: none; cursor: pointer; color: var(--ink-3); font-size: 16px; }
+#elCard { position: relative; font-size: 12.5px; }
+.ecard .hd { display: flex; gap: 9px; align-items: flex-start; }
+.ecard .sw { width: 14px; height: 14px; border-radius: 4px; margin-top: 2px; flex: none; }
+.ecard .tt { font-weight: 650; font-size: 13px; line-height: 1.3; }
+.ecard .st { color: var(--ink-3); font-size: 11.5px; margin-top: 1px; }
+.ecard .hero { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 2px; }
+.ecard .hero .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ecard .hero .u { color: var(--ink-3); }
+.ecard .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.ecard .kv span:nth-child(odd) { color: var(--ink-3); }
+.ecard .kv span:nth-child(even) { text-align: right; }
+.ecard .mats { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.ecard .mats .h { color: var(--ink-3); font-size: 11px; margin-bottom: 4px; }
+.ecard .mat { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; margin: 4px 0; }
+.ecard .mat .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ecard .mat .x { text-align: right; font-variant-numeric: tabular-nums; }
+.ecard .mat .b { grid-column: span 2; height: 4px; background: var(--line); border-radius: 2px; position: relative; }
+.ecard .mat .b i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.ecard .mat .b .zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
+.ecard .warn { margin-top: 8px; color: var(--ink-3); font-size: 11.5px; }
+.ecard .close { position: absolute; top: 6px; right: 8px; border: 0; background: none; cursor: pointer; color: var(--ink-3); font-size: 16px; }
 
 @media (max-width: 760px) {
   #app { grid-template-columns: 1fr; grid-template-rows: 58vh auto; height: auto; }
   #stage { grid-row: 1; height: 58vh; height: 58dvh; position: sticky; top: 0; z-index: 2; }
   #panel { grid-row: 2; border-right: 0; overflow: visible; }
-  #legend { left: 10px; bottom: 10px; width: calc(100% - 20px); padding: 8px 12px; }
-  #card {
-    transform: none !important; top: auto; bottom: 10px; left: 10px; right: 10px; width: auto;
-    max-height: 52%; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; font-size: 11.5px;
-  }
-  /* The element card takes the legend's place; closing it brings the legend back. */
-  #stage:has(#card:not([hidden])) #legend { display: none; }
-  #card .hero { margin-top: 6px; }
-  #card .hero .v { font-size: 19px; }
+  /* Project totals (or the tapped element's card) sit right under the model. */
+  #summary, #elCard { order: -1; }
+  #legend { left: 12px; bottom: 10px; }
+  #legend .bar { width: 120px; }
 }

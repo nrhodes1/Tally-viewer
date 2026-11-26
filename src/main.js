@@ -226,6 +226,7 @@ function paint() {
     m.needsUpdate = true;
     if (el.mesh.children[0]) el.mesh.children[0].visible = !ghost;
   }
+  updateLegendMarker();
 }
 
 function refresh() {
@@ -351,15 +352,25 @@ function renderDiagnostics() {
 function renderLegend() {
   const { scale } = state;
   const ref = fmtMetric(Math.max(scale.pos, scale.neg), state.metric);
-  const u = ref.u;
   const fmt = (v) => (state.metric === 'absolute' && ref.u === 'tCO₂e' ? fmtNum(v / 1000, 1) : fmtMetric(v, state.metric).n);
-  const clipNote = state.clip < 100 ? `clipped at p${state.clip}` : 'full range';
   $('#legend').innerHTML = `
-    <div class="ttl"><b>${state.metric === 'absolute' ? 'Embodied carbon per element' : 'Carbon intensity'}</b><span>${u} · ${clipNote}</span></div>
-    <div class="grad" style="background:${gradientCSS()}"></div>
-    <div class="ticks"><span>${scale.hasNeg ? '−' + fmt(scale.neg) : '—'}</span><span>0</span><span>${scale.hasPos ? '+' + fmt(scale.pos) : '—'}</span></div>
-    <div class="ends"><span>stores carbon</span><span>emits carbon</span></div>
-    <div class="nodata"><i></i>No matching results</div>`;
+    <span>${scale.hasNeg ? '−' + fmt(scale.neg) : '0'}</span>
+    <span class="bar" style="background:${gradientCSS()}"><span class="z"></span><i class="mk" hidden></i></span>
+    <span>${scale.hasPos ? '+' + fmt(scale.pos) : '0'}</span>
+    <span class="u">${ref.u}</span>`;
+  $('#legend').title = `Green stores carbon, red emits it. Scale ${state.clip < 100 ? `clipped at the ${state.clip}th percentile` : 'not clipped'}.`;
+  updateLegendMarker();
+}
+// Marks where the focused (pinned or hovered) element sits on the gradient.
+function updateLegendMarker() {
+  const mk = document.querySelector('#legend .mk');
+  if (!mk) return;
+  const el = state.pinned || state.hovered;
+  mk.hidden = !el?.rec;
+  if (!el?.rec) return;
+  const t = Math.max(-1, Math.min(1, tOf(el.value)));
+  mk.style.left = `${((t + 1) / 2) * 100}%`;
+  mk.style.background = cssColor(t);
 }
 
 // ------------------------------------------------------------------ hover card
@@ -414,7 +425,19 @@ function cardHTML(el) {
     ${el.matchedBy && el.matchedBy !== 'Category + Family + Type' && el.matchedBy !== 'Element ID' ? `<div class="warn">Matched on ${esc(el.matchedBy)}.</div>` : ''}`;
 }
 
+const isPhone = () => matchMedia('(max-width: 760px)').matches;
+const elCard = $('#elCard');
+// On phones a pinned element's card replaces the project totals below the model.
 function showCard(el, x, y) {
+  if (el === state.pinned && isPhone()) {
+    card.hidden = true;
+    elCard.innerHTML = '<button class="close" aria-label="Back to project totals">×</button>' + cardHTML(el);
+    elCard.hidden = false;
+    $('#summary').hidden = true;
+    return;
+  }
+  elCard.hidden = true;
+  $('#summary').hidden = false;
   card.hidden = false;
   card.classList.toggle('pinned', el === state.pinned);
   card.innerHTML = (el === state.pinned ? '<button class="close" aria-label="Close">×</button>' : '') + cardHTML(el);
@@ -429,6 +452,14 @@ function placeCard(clientX, clientY) {
   card.style.transform = `translate(${Math.max(8, x)}px, ${Math.max(8, y)}px)`;
 }
 function hideCard() { if (!state.pinned) card.hidden = true; }
+function clearPin() {
+  state.pinned = null;
+  card.hidden = true;
+  card.classList.remove('pinned');
+  elCard.hidden = true;
+  $('#summary').hidden = false;
+  paint();
+}
 
 let rafPending = false;
 canvas.addEventListener('pointermove', (e) => {
@@ -457,13 +488,14 @@ canvas.addEventListener('pointerup', (e) => {
   state.pinned = el && el !== state.pinned ? el : null;
   state.hovered = el;
   paint();
-  if (state.pinned) showCard(el, e.clientX, e.clientY); else { card.hidden = true; card.classList.remove('pinned'); }
+  if (state.pinned) showCard(el, e.clientX, e.clientY); else clearPin();
 });
 card.addEventListener('click', (e) => {
-  if (e.target.closest('.close')) { state.pinned = null; card.hidden = true; paint(); }
+  if (e.target.closest('.close')) clearPin();
 });
+elCard.addEventListener('click', (e) => { if (e.target.closest('.close')) clearPin(); });
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { state.pinned = null; state.isolate = null; card.hidden = true; paint(); renderSidebar(); }
+  if (e.key === 'Escape') { state.isolate = null; clearPin(); renderSidebar(); }
 });
 
 // ------------------------------------------------------------------ controls
