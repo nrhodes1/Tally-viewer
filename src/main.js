@@ -537,7 +537,9 @@ function renderSidebar() {
 
   const net = fmtMass(totals.net, { sign: true });
   const em = fmtMass(totals.emissions);
-  const st = fmtMass(totals.storage);
+  // Storage: gray, in tonnes, when it's zero or switched off.
+  const stOff = !state.biogenic || !totals.storage;
+  const st = stOff ? { n: '0', u: 'tCO₂e' } : fmtMass(totals.storage);
   const pct = model.elements.length ? Math.round((totals.matchedEls / model.elements.length) * 100) : 0;
   $('#summarySum').textContent = `${net.n} ${net.u} net`;
   $('#summaryBody').innerHTML = `
@@ -547,7 +549,7 @@ function renderSidebar() {
       <div class="stat"><div class="k">Emissions</div><div class="v pos">${em.n}<small>${em.u}</small></div></div>
       ${totals.projectStorage && !totals.storage
         ? `<div class="stat"><div class="k">Biogenic storage · not itemized</div><div class="v neg">${fmtMass(totals.projectStorage).n}<small>${fmtMass(totals.projectStorage).u}</small></div></div>`
-        : `<div class="stat"><div class="k">Biogenic storage</div><div class="v neg">${st.n}<small>${st.u}</small></div></div>`}
+        : `<div class="stat"><div class="k">Biogenic storage</div><div class="v ${stOff ? 'off' : 'neg'}">${st.n}<small>${st.u}</small></div></div>`}
       <div class="stat"><div class="k">Elements matched</div><div class="v">${pct}<small>% of ${model.elements.length.toLocaleString()}</small></div></div>
       <div class="stat"><div class="k">Unmatched results</div><div class="v">${totals.unmatchedTypes}<small>${totals.unmatchedTypes ? fmtMassStr(totals.unmatchedNet, { sign: true }) : 'types'}</small></div></div>
     </div>`;
@@ -596,8 +598,8 @@ function renderSidebar() {
   const showingUnmatched = state.isolate?.kind === 'unmatched';
   $('#unmatchedBtn').hidden = nUnmatched === 0 && !showingUnmatched;
   $('#unmatchedBtn').classList.toggle('on', showingUnmatched);
-  $('#unmatchedBtn').innerHTML = showingUnmatched ? 'Show matched elements'
-    : `<span class="dot"></span>Highlight unmatched elements <span class="muted">${nUnmatched.toLocaleString()}</span>`;
+  $('#unmatchedBtn').innerHTML = showingUnmatched ? 'Hide unmatched elements'
+    : `Show unmatched elements <span class="muted">${nUnmatched.toLocaleString()}</span>`;
   $('#typeList').innerHTML = order.map((sys) => {
     const list = bySys.get(sys).sort((x, y) => mval(y) - mval(x));
     const net = list.reduce((acc, g) => acc + g.ev.net, 0);
