@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carbon Hotspot Viewer</title>
+<meta name="description" content="See embodied-carbon hotspots in a Revit model: IFC geometry coloured by Tally / C.Scale results, green for stored carbon, red for emissions.">
+<link rel="stylesheet" href="src/styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <header class="brand">
+      <h1>Carbon Hotspot Viewer</h1>
+      <p class="sub">Revit model × Tally results</p>
+    </header>
+
+    <section class="block">
+      <div class="loaders">
+        <label class="btn">
+          <input type="file" id="ifcInput" accept=".ifc" hidden>
+          <span class="btn-title">Load model</span><span class="btn-hint">.ifc from Revit</span>
+        </label>
+        <label class="btn">
+          <input type="file" id="dataInput" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm" hidden>
+          <span class="btn-title">Load results</span><span class="btn-hint">Tally .csv / .xlsx</span>
+        </label>
+      </div>
+      <div id="sources" class="sources"></div>
+      <button id="demoBtn" class="link">Reset to demo building</button>
+    </section>
+
+    <section class="block" id="summary"></section>
+
+    <section class="block">
+      <h2>Colour by</h2>
+      <div class="seg" id="metricSeg" role="radiogroup">
+        <button data-metric="absolute" class="on">Total</button>
+        <button data-metric="area">per m²</button>
+        <button data-metric="volume">per m³</button>
+      </div>
+      <p class="note" id="metricNote"></p>
+
+      <h2>Life-cycle stages</h2>
+      <div id="stageChips" class="chips"></div>
+      <label class="check"><input type="checkbox" id="bioToggle" checked> Include biogenic carbon storage</label>
+
+      <h2>Scale</h2>
+      <label class="range">Clip outliers at <b id="clipVal">95th</b> percentile
+        <input type="range" id="clipRange" min="75" max="100" step="1" value="95">
+      </label>
+      <label class="check"><input type="checkbox" id="sharedToggle"> Same scale for storage and emissions</label>
+
+      <h2>Section cut</h2>
+      <label class="range">Cut model at <b id="cutVal">off</b>
+        <input type="range" id="cutRange" min="2" max="100" step="1" value="100">
+      </label>
+    </section>
+
+    <section class="block grow">
+      <h2>Types <span class="muted" id="typesHint">click to isolate</span></h2>
+      <ol id="typeList" class="types"></ol>
+    </section>
+
+    <section class="block">
+      <details id="diag">
+        <summary>Matching &amp; columns</summary>
+        <div id="diagBody"></div>
+      </details>
+    </section>
+  </aside>
+
+  <main id="stage">
+    <canvas id="viewport"></canvas>
+    <div id="legend"></div>
+    <div id="status" hidden></div>
+    <div id="dropHint" hidden><div>Drop an <b>.ifc</b> model or a Tally <b>.csv / .xlsx</b></div></div>
+    <div id="card" hidden></div>
+  </main>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

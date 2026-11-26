@@ -1,0 +1,9 @@
+{
+  "name": "tally-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "samples": "node tools/make-samples.mjs",
+    "start": "npx --yes serve -l 8080 ."
+  }
+}

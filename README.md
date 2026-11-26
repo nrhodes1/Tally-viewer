@@ -1,0 +1,103 @@
+# Carbon Hotspot Viewer
+
+A browser viewer that colours a Revit model by its embodied-carbon results from Tally (C.Scale), so you can spot hotspots at a glance.
+
+- **Green** means the element stores more carbon (net biogenic storage) than it emits: CLT, glulam, hempcrete.
+- **Red** means net emissions: concrete, steel, aluminium, glazing.
+- **Deeper colour** means a stronger value. The scale is centred at zero.
+- **Hover** over any element to see a card with its type, carbon, intensity and quantities, plus a material breakdown of what drives the result. Click an element to pin its card.
+- **Types list:** click a type to isolate it and ghost the rest of the model.
+- **Section cut:** slice the model by height to see interior elements such as cores, partitions and beams.
+
+It opens on a demo building with synthetic data. To see your own project, load your IFC and Tally export, or drag both files onto the window.
+
+## Run it
+
+The app is a static site with no build step. ES modules need a server, so opening `index.html` from disk won't work. Run one of these:
+
+```bash
+python3 -m http.server 8080      # then open http://localhost:8080
+# or
+npx serve -l 8080 .
+```
+
+You can also host the folder on GitHub Pages. The libraries (three.js, web-ifc, SheetJS) load from jsdelivr, so the browser needs internet access.
+
+## Getting your data out
+
+### 1. The model: IFC from Revit
+
+Use **File → Export → IFC**. The default settings work. Two of them matter:
+
+- Revit writes each element's `ObjectType` as `Family:Type` and its `Tag` as the Revit **Element ID**. The viewer reads both, so leave those defaults alone.
+- Export only what Tally analysed. Filter to the 3D view you used for Tally, and turn off rooms and spaces.
+
+Each IFC class maps to the matching Revit category (`IfcWall` → Walls, `IfcSlab` → Floors, `IfcColumn` → Structural Columns, and so on).
+
+### 2. The results: Tally / C.Scale export
+
+Export the type-level results as CSV or XLSX. Tally 2.0's exact column layout isn't publicly documented, so the viewer **detects columns by name**:
+
+| Field | Recognised headers (examples) |
+| --- | --- |
+| Category | `Revit Category`, `Category` |
+| Family | `Revit Family`, `Family` |
+| Type | `Revit Type`, `Type`, `Type Name` |
+| Family and Type (combined) | `Family and Type` (split on the first `:`) |
+| Element ID (optional, per-element exports) | `Element ID`, `Revit ID` |
+| Material (optional, layer breakdown) | `Material`, `Material Name`, `Tally Entry` |
+| GWP by stage, wide layout | `GWP A1-A3 …`, `Global Warming … A4`, `… Module D`, `… End of Life` |
+| GWP by stage, long layout | a `Life Cycle Stage` column plus one GWP value column |
+| Biogenic carbon (optional) | anything containing `biogenic` |
+
+The parser ignores title rows above the header. For a workbook, it picks the sheet that looks most like a results table. If detection gets something wrong, open **Matching & columns** in the sidebar and re-map the columns by hand.
+
+`sample/sample-tally.csv` shows the expected shape.
+
+## How results are joined to elements
+
+1. **Element ID**: used when the export has per-element rows.
+2. **Category + Family + Type**: the normal case. Each Revit wall type, such as `Basic Wall: Ext - CLT 120 + Wood Fibre 160`, stays distinct.
+3. **Family + Type**: used if the category doesn't line up, but only when that pair is unique.
+4. **Type name alone**: the last resort, also only when the name is unique.
+
+Names are compared case-insensitively, with whitespace and dash variants normalised. The hover card says when an element matched on a weaker rule.
+
+**Matching & columns** also lists model types with no results and result types with no model elements. Renamed types and elements left out of the Tally run turn up there.
+
+## What the colours mean
+
+| Mode | Value per element |
+| --- | --- |
+| **Total** | Type result × (element volume ÷ total volume of that type's elements). Big elements read hotter. |
+| **per m²** | Type result ÷ total face area of the type's elements. Compares walls, floors and roofs fairly. |
+| **per m³** | Type result ÷ total volume of the type's elements. Suits columns, beams and foundations. |
+
+The viewer measures volume and face area from the mesh. Face area is the largest set of parallel faces, which is exact for walls and slabs and rough for anything else.
+
+- **Life-cycle stages:** toggle which modules count. Module D is off by default, as EN 15978 reports it separately.
+- **Biogenic storage:** included by default. Turn it off if your export already nets biogenic carbon into GWP, or to see fossil emissions only.
+- **Outlier clipping:** each side of the scale is capped at a percentile (95th by default), so one huge slab doesn't wash out everything else. Elements past the cap show at full colour.
+- **Same scale:** by default, green and red scale independently, so storage stays visible next to large emissions. Tick this to put both on one scale for a like-for-like comparison.
+
+## Files
+
+```
+index.html               page + import map
+src/main.js              scene, matching, colouring, hover card, sidebar
+src/data.js              CSV/XLSX reading, column detection, per-type aggregation
+src/model.js             IFC → meshes (web-ifc), demo model, volume/area measurement
+src/color.js             diverging green–red scale
+src/demo-building.js     the procedural demo building + its material build-ups
+tools/make-samples.mjs   regenerates sample/sample-tally.csv and sample/demo-building.ifc
+sample/                  synthetic sample export + matching IFC (not real LCA data)
+```
+
+Run `node tools/make-samples.mjs` to regenerate the samples after editing the demo building.
+
+## Next steps
+
+- **Test against a real Tally 2.0 export.** The column detection is a best guess. One real file will confirm it or show what to add.
+- **Write kgCO₂e onto elements in Revit:** a Dynamo or pyRevit script sets a shared parameter before IFC export. Results then travel with the model and need no name matching.
+- **Pull results live** from C.Scale's API instead of a file, once its details are available.
+- **Bigger models:** merge meshes per type and use instancing above roughly 10k elements.

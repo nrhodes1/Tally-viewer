@@ -1,0 +1,41 @@
+Project,Demo Office (synthetic sample data - not real LCA results)
+Report,Type-level results by material
+
+Revit Category,Revit Family,Revit Type,Material,Mass Total (kg),GWP A1-A3 Product (kgCO2eq),GWP A4 Transportation (kgCO2eq),GWP B2-B5 Maintenance & Replacement (kgCO2eq),GWP C2-C4 End of Life (kgCO2eq),GWP D Module D (kgCO2eq),Biogenic Carbon Storage (kgCO2eq)
+Structural Foundations,Footing-Rectangular,Footing - Concrete 2000x2000x600,"Ready-mix concrete, 30 MPa",86400.0,10260.00,324.00,0.00,504.00,-144.00,0.00
+Structural Foundations,Footing-Rectangular,Footing - Concrete 2000x2000x600,Reinforcing steel,3240.0,3780.00,72.00,0.00,36.00,-1368.00,0.00
+Floors,Floor,Slab on Grade - Concrete 200,"Ready-mix concrete, 25 MPa",192076.8,20808.32,720.29,0.00,1080.43,-320.13,0.00
+Floors,Floor,Slab on Grade - Concrete 200,Welded wire mesh,1600.6,2480.99,40.02,0.00,40.02,-840.34,0.00
+Floors,Floor,Slab on Grade - Concrete 200,XPS insulation 50mm,640.3,3761.50,80.03,0.00,240.10,0.00,0.00
+Floors,Floor,Slab on Grade - Concrete 200,Polyethylene vapour barrier,80.0,240.10,0.00,0.00,40.02,0.00,0.00
+Structural Columns,Glulam Column,GL24h 300x300,"Glulam, softwood",7042.9,2517.48,209.79,0.00,329.67,-1423.57,-12167.82
+Structural Framing,Glulam Beam,GL28h 240x600,"Glulam, softwood",18911.2,6737.13,551.58,0.00,866.76,-3782.25,-32661.27
+Structural Framing,Glulam Beam,GL28h 240x600,Steel connectors,315.2,827.37,7.88,0.00,3.94,-275.79,0.00
+Structural Framing,W-Wide Flange,W360x51 Steel,Hot-rolled structural steel,3926.8,4715.17,59.88,0.00,44.91,-2145.53,0.00
+Structural Framing,W-Wide Flange,W360x51 Steel,Intumescent coating,29.9,189.60,1.50,109.77,2.49,0.00,0.00
+Floors,Floor,CLT 5-ply 175 + Concrete Topping 50,"Cross-laminated timber, 175mm",94464.0,26611.20,2764.80,0.00,4147.20,-15206.40,-158976.00
+Floors,Floor,CLT 5-ply 175 + Concrete Topping 50,Concrete topping 50mm,138240.0,16819.20,576.00,0.00,806.40,-230.40,0.00
+Floors,Floor,CLT 5-ply 175 + Concrete Topping 50,Acoustic underlayment,1728.0,2419.20,115.20,1382.40,230.40,0.00,0.00
+Walls,Basic Wall,Core - Concrete 300,"Ready-mix concrete, 35 MPa",215654.4,28574.21,808.70,0.00,1257.98,-359.42,0.00
+Walls,Basic Wall,Core - Concrete 300,Reinforcing steel,11681.3,13658.11,269.57,0.00,134.78,-4942.08,0.00
+Curtain Panels,System Panel,Glazed - Triple IGU,"Float glass, 3 panes",2181.2,3344.43,116.33,3344.43,65.43,-218.12,0.00
+Curtain Panels,System Panel,Glazed - Triple IGU,IGU spacers + sealant,87.2,690.70,7.27,690.70,14.54,0.00,0.00
+Curtain Wall Mullions,Rectangular Mullion,Aluminium 50x150,"Extruded aluminium, anodised",348.7,3616.20,14.21,0.00,9.69,-1452.94,0.00
+Curtain Wall Mullions,Rectangular Mullion,Aluminium 50x150,"Thermal break, polyamide",16.1,113.01,0.65,0.00,1.61,0.00,0.00
+Walls,Basic Wall,Ext - CLT 120 + Wood Fibre 160,"Cross-laminated timber, 120mm",33868.8,9555.84,967.68,0.00,1512.00,-5443.20,-57456.00
+Walls,Basic Wall,Ext - CLT 120 + Wood Fibre 160,Wood fibre insulation board,14515.2,8588.16,423.36,0.00,604.80,-3084.48,-22982.40
+Walls,Basic Wall,Ext - CLT 120 + Wood Fibre 160,"Timber cladding, larch",6652.8,1753.92,181.44,1753.92,241.92,-1088.64,-10886.40
+Walls,Basic Wall,Ext - CLT 120 + Wood Fibre 160,Breather membrane,121.0,544.32,0.00,0.00,60.48,0.00,0.00
+Walls,Basic Wall,Ext - Brick Veneer + Steel Stud,Clay brick,80640.0,19353.60,1428.48,0.00,737.28,-230.40,0.00
+Walls,Basic Wall,Ext - Brick Veneer + Steel Stud,Light-gauge steel stud,2857.0,7557.12,46.08,0.00,46.08,-2672.64,0.00
+Walls,Basic Wall,Ext - Brick Veneer + Steel Stud,Mineral wool insulation,2764.8,3594.24,138.24,0.00,138.24,0.00,0.00
+Walls,Basic Wall,Ext - Brick Veneer + Steel Stud,"Gypsum board, 2 layers",9216.0,2396.16,138.24,0.00,414.72,0.00,0.00
+Walls,Basic Wall,Ext - Brick Veneer + Steel Stud,Gypsum sheathing,4147.2,1198.08,46.08,0.00,184.32,0.00,0.00
+Walls,Basic Wall,Int - Gypsum on Wood Stud 150,"Gypsum board, 2 layers",6075.0,1579.50,91.13,0.00,273.38,0.00,0.00
+Walls,Basic Wall,Int - Gypsum on Wood Stud 150,Softwood stud,1518.8,425.25,60.75,0.00,91.13,-273.38,-2612.25
+Walls,Basic Wall,Int - Gypsum on Wood Stud 150,Mineral wool insulation,1215.0,1579.50,60.75,0.00,60.75,0.00,0.00
+Walls,Basic Wall,Int - Hempcrete 300,Hempcrete block,3408.1,826.20,37.87,0.00,48.19,-41.31,-2272.05
+Walls,Basic Wall,Int - Hempcrete 300,"Lime plaster, both sides",1032.8,209.99,10.33,0.00,13.77,0.00,0.00
+Roofs,Basic Roof,CLT 200 + Wood Fibre 200 + EPDM,"Cross-laminated timber, 200mm",36096.0,10137.60,1036.80,0.00,1574.40,-5798.40,-60672.00
+Roofs,Basic Roof,CLT 200 + Wood Fibre 200 + EPDM,Wood fibre insulation board,11520.0,6835.20,345.60,0.00,460.80,-2457.60,-18048.00
+Roofs,Basic Roof,CLT 200 + Wood Fibre 200 + EPDM,EPDM membrane,729.6,2611.20,38.40,2611.20,153.60,0.00,0.00
