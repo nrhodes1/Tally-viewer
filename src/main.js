@@ -97,6 +97,9 @@ function frameModel() {
 }
 
 function setModel(model) {
+  // Start screen: shown until a model (IFC or demo) is loaded.
+  $('#app').classList.toggle('empty', !!model.empty);
+  $('#start').hidden = !model.empty;
   for (const c of [...modelRoot.children]) {
     modelRoot.remove(c);
     c.geometry?.dispose();
@@ -546,11 +549,14 @@ function fmtWhen(d) {
 }
 function renderModelData() {
   const { model, data, modelFile, dataFile } = state;
-  const mf = modelFile || { name: model.name, demo: true };
-  const df = dataFile || { name: state.dataName || 'None loaded', demo: true };
+  const mf = modelFile || { name: model.name, demo: !model.empty };
+  const df = dataFile || { name: state.dataName || 'None loaded', demo: !!state.dataName };
   $('#ifcFile').textContent = mf.name;
-  $('#ifcMeta').textContent = [`${model.elements.length.toLocaleString()} elements`,
+  $('#ifcMeta').textContent = model.empty ? '' : [`${model.elements.length.toLocaleString()} elements`,
     mf.demo ? 'built-in demo' : `uploaded ${fmtWhen(mf.at)}`].join(' · ');
+  // Start screen: confirm a results file loaded before the model.
+  $('#startData').classList.toggle('done', !!data);
+  $('#startDataHint').textContent = data ? `✓ ${df.name}` : 'Tally or C.Scale .csv / .xlsx';
   $('#dataFile').textContent = df.name;
   const nScen = state.sets?.size || 0;
   $('#dataMeta').textContent = data ? [
@@ -854,18 +860,28 @@ async function handleFile(file) {
       state.dataFile = { name: state.dataName, at: new Date() };
       refresh();
       const n = state.sets.size;
-      status(`${n > 1 ? `${n} scenarios · ` : ''}${state.totals.matchedEls} of ${state.model.elements.length} elements matched`);
+      if (state.model.empty) status(`${file.name} loaded${n > 1 ? ` · ${n} scenarios` : ''}`);
+      else status(`${n > 1 ? `${n} scenarios · ` : ''}${state.totals.matchedEls} of ${state.model.elements.length} elements matched`);
     } else status(`Unsupported file: ${file.name}`, { error: true });
   } catch (err) {
     console.error(err);
     status(`Couldn't load ${file.name}: ${err.message}`, { error: true });
   }
 }
+$('#startIfcInput').addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
+$('#startDataInput').addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
+$('#startDemo').addEventListener('click', loadDemo);
+if ($('#ifcZone').classList.contains('disabled')) {
+  // Shared demo build: IFC upload isn't available here.
+  $('#startIfc').classList.add('disabled');
+  $('#startIfcInput').disabled = true;
+  $('#startIfcHint').textContent = 'IFC upload is in the full version only';
+}
 $('#ifcInput').addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
 $('#dataInput').addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
 
 // Drop zones in Model data: highlight while a file is dragged over them.
-for (const z of [$('#ifcZone'), $('#dataZone')]) {
+for (const z of document.querySelectorAll('.zone')) {
   z.addEventListener('dragover', (e) => { e.preventDefault(); z.classList.add('over'); });
   z.addEventListener('dragleave', () => z.classList.remove('over'));
   z.addEventListener('drop', (e) => {
@@ -902,5 +918,6 @@ $('#demoBtn').addEventListener('click', loadDemo);
 $('#version').textContent = VERSION;
 resize();
 applyTheme();
-loadDemo();
+setModel({ elements: [], name: 'None loaded', empty: true });
+refresh();
 window.__viewer = { state, camera, controls, refresh };

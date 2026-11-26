@@ -92,6 +92,25 @@
     <canvas id="viewport"></canvas>
     <button id="settingsBtn" class="fab" aria-haspopup="dialog" aria-controls="settings"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></button>
     <div id="legend"></div>
+    <div id="start" class="start">
+      <div class="start-in">
+        <div class="start-zones">
+          <label class="szone zone" id="startIfc">
+            <input type="file" id="startIfcInput" accept=".ifc" hidden>
+            <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
+            <span class="s-title">Revit model</span>
+            <span class="s-hint" id="startIfcHint">Click or drop an .ifc file</span>
+          </label>
+          <label class="szone zone" id="startData">
+            <input type="file" id="startDataInput" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm" hidden>
+            <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16M4 14.5h16M10 9v11.5"/></svg>
+            <span class="s-title">Carbon results</span>
+            <span class="s-hint" id="startDataHint">Tally or C.Scale .csv / .xlsx</span>
+          </label>
+        </div>
+        <button id="startDemo" class="start-demo">or use demo</button>
+      </div>
+    </div>
     <div id="status" hidden></div>
     <div id="dropHint" hidden><div>Drop an <b>.ifc</b> model or a Tally <b>.csv / .xlsx</b></div></div>
     <div id="card" class="ecard" hidden></div>
