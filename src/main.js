@@ -403,7 +403,8 @@ function compute() {
   const neg = vals.filter((v) => v < 0).map((v) => -v).sort((a, b) => a - b);
   let pMax = percentile(pos, state.clip) || 1, nMax = percentile(neg, state.clip) || 1;
   if (state.shared) pMax = nMax = Math.max(pos.length ? pMax : 0, neg.length ? nMax : 0) || 1;
-  state.scale = { pos: pMax, neg: nMax, hasPos: pos.length > 0, hasNeg: neg.length > 0 };
+  state.scale = { pos: pMax, neg: nMax, hasPos: pos.length > 0, hasNeg: neg.length > 0,
+    maxPos: pos.length ? pos[pos.length - 1] : 0, maxNeg: neg.length ? neg[neg.length - 1] : 0 };
 }
 
 function tOf(v) { return v >= 0 ? v / state.scale.pos : v / state.scale.neg; }
@@ -679,11 +680,16 @@ function renderLegend() {
   const { scale } = state;
   const ref = fmtMetric(Math.max(scale.pos, scale.neg), state.metric);
   const fmt = (v) => (state.metric === 'absolute' && ref.u === 'tCO₂e' ? fmtNum(v / 1000, 1) : fmtMetric(v, state.metric).n);
+  // When outliers are clipped, say so: the end value becomes "≥ cap", and the real
+  // extreme follows, so the legend never hides the largest element.
+  const cutPos = scale.hasPos && scale.maxPos > scale.pos * 1.001;
+  const cutNeg = scale.hasNeg && scale.maxNeg > scale.neg * 1.001;
   $('#legend').innerHTML = `
-    <span>${scale.hasNeg ? '−' + fmt(scale.neg) : '0'}</span>
+    <span>${scale.hasNeg ? `${cutNeg ? '≤ ' : ''}−${fmt(scale.neg)}` : '0'}</span>
     <span class="bar" style="background:${gradientCSS()}"><span class="z"></span><i class="mk" hidden></i></span>
-    <span>${scale.hasPos ? '+' + fmt(scale.pos) : '0'}</span>
-    <span class="u">${ref.u}</span>`;
+    <span>${scale.hasPos ? `${cutPos ? '≥ ' : ''}+${fmt(scale.pos)}` : '0'}</span>
+    <span class="u">${ref.u}</span>
+    ${cutPos || cutNeg ? `<span class="u">· max ${[cutNeg ? '−' + fmt(scale.maxNeg) : '', cutPos ? '+' + fmt(scale.maxPos) : ''].filter(Boolean).join(' / ')}</span>` : ''}`;
   $('#legend').title = state.clip < 100 ? `Clipped at ${state.clip}th percentile` : 'Not clipped';
   updateLegendMarker();
 }
@@ -984,6 +990,10 @@ async function loadDemo() {
 $('#demoBtn').addEventListener('click', loadDemo);
 
 // ------------------------------------------------------------------ boot
+// Browsers can restore form values on reload; make the controls match the app's state.
+$('#clipRange').value = state.clip;
+$('#cutRange').value = 100;
+$('#sharedToggle').checked = state.shared;
 $('#version').textContent = VERSION;
 resize();
 applyTheme();
