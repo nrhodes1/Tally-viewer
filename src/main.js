@@ -784,6 +784,15 @@ function showCard(el, x, y) {
     elCard.innerHTML = '<button class="close" aria-label="Back to project totals">×</button>' + cardHTML(el);
     elCard.hidden = false;
     $('#summary').hidden = true;
+    // On a tap (not a refresh), bring the card into view just below the sticky 3D view.
+    if (x !== undefined) {
+      const below = $('#stage').getBoundingClientRect().bottom;
+      const top = elCard.getBoundingClientRect().top;
+      if (top < below || top > window.innerHeight - 120) {
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top: window.scrollY + top - below, behavior: reduce ? 'auto' : 'smooth' });
+      }
+    }
     return;
   }
   elCard.hidden = true;

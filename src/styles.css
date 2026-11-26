@@ -222,10 +222,21 @@ button { font: inherit; color: inherit; }
   /* iOS zooms the page when a control under 16px gets focus. */
   .select, #diagBody select { font-size: 16px; }
   .stat .k { overflow-wrap: anywhere; }
-  #stage { grid-row: 1; height: 58vh; height: 58dvh; position: sticky; top: 0; z-index: 2; }
+  /* Title bar fixed at the very top; the 3D view sticks just below it. */
+  :root { --brand-h: calc(46px + env(safe-area-inset-top, 0px)); }
+  #app { padding-top: var(--brand-h); }
+  .brand {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 8; height: var(--brand-h);
+    display: flex; align-items: baseline; gap: 8px; background: var(--panel); border-bottom: 1px solid var(--line);
+    padding: calc(13px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+  }
+  .brand h1 { font-size: 16px; }
+  .brand .sub { margin: 0; font-size: 12px; }
+  #stage { grid-row: 1; height: 58vh; height: 58dvh; position: sticky; top: var(--brand-h); z-index: 2; }
   #panel { grid-row: 2; border-right: 0; overflow: visible; }
-  /* Project totals (or the tapped element's card) sit right under the model. */
-  #scenarioBlock, #summary, #elCard { order: -1; }
+  /* A tapped element's card comes first, then the scenario and project totals. */
+  #elCard { order: -2; }
+  #scenarioBlock, #summary { order: -1; }
   #status { left: 12px; transform: none; max-width: calc(100% - 24px); border-radius: 12px; }
   #legend { left: 12px; bottom: 10px; }
   #legend .bar { width: 120px; }
