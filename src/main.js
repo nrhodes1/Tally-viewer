@@ -289,9 +289,9 @@ const signCls = (v) => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
 
 // ------------------------------------------------------------------ sidebar
 const METRIC_NOTES = {
-  absolute: "Each type's result is split across its elements by volume, so big elements read hotter.",
-  area: "Type result ÷ total face area of its elements. Compares assemblies like walls, floors and roofs fairly. Face area is measured from the geometry.",
-  volume: "Type result ÷ total volume of its elements. Suited to columns, beams and foundations.",
+  absolute: 'Type total split across its elements by volume.',
+  area: 'Type total ÷ face area. Best for walls, floors, roofs.',
+  volume: 'Type total ÷ volume. Best for columns, beams, footings.',
 };
 
 function renderSidebar() {
@@ -305,12 +305,12 @@ function renderSidebar() {
   const pct = model.elements.length ? Math.round((totals.matchedEls / model.elements.length) * 100) : 0;
   $('#summary').innerHTML = `
     <div class="stats">
-      <div class="stat big"><div class="k">Net embodied carbon · matched elements</div>
+      <div class="stat big"><div class="k">Net embodied carbon</div>
         <div class="v ${signCls(totals.net)}">${net.n}<small>${net.u}</small></div></div>
       <div class="stat"><div class="k">Emissions</div><div class="v pos">${em.n}<small>${em.u}</small></div></div>
       <div class="stat"><div class="k">Biogenic storage</div><div class="v neg">${st.n}<small>${st.u}</small></div></div>
       <div class="stat"><div class="k">Elements matched</div><div class="v">${pct}<small>% of ${model.elements.length.toLocaleString()}</small></div></div>
-      <div class="stat"><div class="k">Results not in model</div><div class="v">${totals.unmatchedTypes}<small>${totals.unmatchedTypes ? fmtMassStr(totals.unmatchedNet, { sign: true }) : 'types'}</small></div></div>
+      <div class="stat"><div class="k">Unmatched results</div><div class="v">${totals.unmatchedTypes}<small>${totals.unmatchedTypes ? fmtMassStr(totals.unmatchedNet, { sign: true }) : 'types'}</small></div></div>
     </div>`;
 
   // Metric
@@ -321,7 +321,7 @@ function renderSidebar() {
   $('#stageChips').innerHTML = (data?.stages || []).map((s) =>
     `<button class="chip ${state.stages.has(s) ? 'on' : ''}" data-stage="${esc(s)}">${esc(s)}</button>`).join('')
     || '<span class="note">No stage columns detected.</span>';
-  $('#clipVal').textContent = state.clip === 100 ? 'max (no clip)' : `${state.clip}th`;
+  $('#clipVal').textContent = state.clip === 100 ? 'off' : `${state.clip}th percentile`;
 
   // Types grouped by building system, each sorted by the current metric
   const groups = [...state.groups.values()];
@@ -348,7 +348,7 @@ function renderSidebar() {
       <span class="nm"><span class="sw" style="background:${tcol}"></span>${esc(g.rec.type || g.rec.elementId)}</span>
       <span class="vv ${signCls(v)}">${f.n}</span>
       <span class="bar"><i style="${bar};background:${tcol}"></i></span>
-      <span class="meta">${esc(g.rec.category || '—')} · ${g.els.length} el. · ${state.metric === 'absolute' ? '' : fmtMassStr(g.ev.net, { sign: true }) + ' · '}${f.u}</span>
+      <span class="meta">${esc(g.rec.category || '—')} · ${g.els.length} el.${state.metric === 'absolute' ? '' : ` · ${fmtMassStr(g.ev.net, { sign: true })} total`}</span>
     </li>`;
   };
   $('#typeList').innerHTML = order.map((sys) => {
@@ -363,7 +363,7 @@ function renderSidebar() {
       </button>
       <ol>${list.map(row).join('')}</ol>
     </section>`;
-  }).join('') || '<p class="note">No elements matched. Open Settings › Matching &amp; columns.</p>';
+  }).join('') || '<p class="note">No matches. See Settings › Matching.</p>';
 
   renderDiagnostics();
 }
@@ -381,9 +381,9 @@ function renderDiagnostics() {
 
   let html = '';
   if (how.size) html += `<h3>Matched by</h3><ul>${[...how].map(([k, n]) => `<li>${esc(k)}: ${n}</li>`).join('')}</ul>`;
-  if (unmatched.size) html += `<h3>Model types with no results (${unmatched.size})</h3><ul>${[...unmatched].sort((a, b) => b[1] - a[1]).slice(0, 40)
+  if (unmatched.size) html += `<h3>Unmatched model types (${unmatched.size})</h3><ul>${[...unmatched].sort((a, b) => b[1] - a[1]).slice(0, 40)
     .map(([k, n]) => `<li>${esc(k)} <span class="muted">×${n}</span></li>`).join('')}</ul>`;
-  if (notInModel.length) html += `<h3>Results with no model elements (${notInModel.length})</h3><ul>${notInModel.slice(0, 40)
+  if (notInModel.length) html += `<h3>Unmatched results (${notInModel.length})</h3><ul>${notInModel.slice(0, 40)
     .map((r) => `<li>${esc(r.category)} · ${esc(r.family)}: ${esc(r.type || r.elementId)}</li>`).join('')}</ul>`;
 
   if (table) {
@@ -411,7 +411,7 @@ function renderLegend() {
     <span class="bar" style="background:${gradientCSS()}"><span class="z"></span><i class="mk" hidden></i></span>
     <span>${scale.hasPos ? '+' + fmt(scale.pos) : '0'}</span>
     <span class="u">${ref.u}</span>`;
-  $('#legend').title = `Green stores carbon, red emits it. Scale ${state.clip < 100 ? `clipped at the ${state.clip}th percentile` : 'not clipped'}.`;
+  $('#legend').title = state.clip < 100 ? `Clipped at ${state.clip}th percentile` : 'Not clipped';
   updateLegendMarker();
 }
 // Marks where the focused (pinned or hovered) element sits on the gradient.
@@ -445,13 +445,13 @@ function cardHTML(el) {
   const g = el.rec ? state.groups.get(el.rec.key) : null;
   const title = el.type || el.name || '(unnamed element)';
   const sub = [el.category, el.family].filter(Boolean).join(' · ');
-  const idLine = el.elementId ? `<span>Revit Element ID</span><span>${esc(el.elementId)}</span>` : '';
-  const qty = `<span>Volume</span><span>${fmtNum(el.volume, 2)} m³</span><span>Face area</span><span>${fmtNum(el.area, 1)} m²</span>`;
+  const idLine = el.elementId ? `<span>Element ID</span><span>${esc(el.elementId)}</span>` : '';
+  const qty = `<span>Volume</span><span>${fmtNum(el.volume, 2)} m³</span><span>Area</span><span>${fmtNum(el.area, 1)} m²</span>`;
   if (!g) {
     return `<div class="hd"><span class="sw" style="background:var(--nodata)"></span><div>
       <div class="tt">${esc(title)}</div><div class="st">${esc(sub)}</div></div></div>
       <div class="kv">${idLine}${qty}</div>
-      <div class="warn">No matching row in the results export for this Category / Family / Type.</div>`;
+      <div class="warn">No Tally results for this type.</div>`;
   }
   const col = cssColor(tOf(el.value));
   const abs = fmtMass(el.abs, { sign: true });
@@ -459,7 +459,7 @@ function cardHTML(el) {
   const shareEm = state.totals.emissions ? (Math.max(0, el.abs) / state.totals.emissions) * 100 : 0;
   const mats = g.ev.materials.slice(0, 5);
   const mMax = Math.max(1e-9, ...mats.map((m) => Math.abs(m.value)));
-  const matHTML = mats.length > 1 || (mats[0] && mats[0].name !== 'Assembly') ? `<div class="mats"><div class="h">What drives it · per element</div>${mats.map((m) => {
+  const matHTML = mats.length > 1 || (mats[0] && mats[0].name !== 'Assembly') ? `<div class="mats"><div class="h">Assembly</div>${mats.map((m) => {
     const w = (Math.abs(m.value) / mMax) * 50;
     const c = cssColor(Math.sign(m.value) * Math.max(0.35, Math.abs(m.value) / mMax));
     const pos = m.value >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
@@ -468,14 +468,14 @@ function cardHTML(el) {
   }).join('')}${g.ev.materials.length > 5 ? `<div class="h">+ ${g.ev.materials.length - 5} more</div>` : ''}</div>` : '';
   return `<div class="hd"><span class="sw" style="background:${col}"></span><div>
       <div class="tt">${esc(title)}</div><div class="st">${esc(sub)}</div></div></div>
-    <div class="hero"><span class="v ${signCls(el.abs)}">${abs.n}</span><span class="u">${abs.u} this element</span></div>
+    <div class="hero"><span class="v ${signCls(el.abs)}">${abs.n}</span><span class="u">${abs.u}</span></div>
     <div class="kv">
-      <span>Type intensity</span><span>${fmtMetric(g.perArea, 'area', { sign: true }).n} kg/m² · ${fmtMetric(g.perVolume, 'volume', { sign: true }).n} kg/m³</span>
-      <span>Type total (${g.els.length} el.)</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
+      <span>Intensity</span><span>${fmtMetric(g.perArea, 'area', { sign: true }).n} kg/m² · ${fmtMetric(g.perVolume, 'volume', { sign: true }).n} kg/m³</span>
+      <span>Type total · ${g.els.length} el.</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
       ${el.abs > 0 ? `<span>Share of emissions</span><span>${fmtNum(shareEm, 1)}%</span>` : `<span>Share of storage</span><span>${fmtNum(shareSt, 1)}%</span>`}
       ${idLine}${qty}
     </div>${matHTML}
-    ${el.matchedBy && el.matchedBy !== 'Category + Family + Type' && el.matchedBy !== 'Element ID' ? `<div class="warn">Matched on ${esc(el.matchedBy)}.</div>` : ''}`;
+    ${el.matchedBy && el.matchedBy !== 'Category + Family + Type' && el.matchedBy !== 'Element ID' ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
 }
 
 const isPhone = () => matchMedia('(max-width: 760px)').matches;
@@ -645,7 +645,7 @@ async function loadDemo() {
     setTable(tableFromText(text), 'sample-tally.csv (synthetic)');
   } catch (err) {
     console.error(err);
-    status('Could not fetch the sample results. Serve this folder over http (see README).', { error: true });
+    status("Couldn't load the sample results. Serve this folder over http.", { error: true });
   }
   refresh();
 }
