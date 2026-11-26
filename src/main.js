@@ -441,17 +441,21 @@ function pick(clientX, clientY) {
   return hit ? hit.object.userData.element : null;
 }
 
-function cardHTML(el) {
+// mode: 'full' (phone panel), 'compact' (desktop hover), 'expanded' (desktop click)
+function cardHTML(el, mode = 'full') {
+  const inline = mode !== 'full';
   const g = el.rec ? state.groups.get(el.rec.key) : null;
   const title = el.type || el.name || '(unnamed element)';
   const sub = [el.category, el.family].filter(Boolean).join(' · ');
   const idLine = el.elementId ? `<span>Element ID</span><span>${esc(el.elementId)}</span>` : '';
   const qty = `<span>Volume</span><span>${fmtNum(el.volume, 2)} m³</span><span>Area</span><span>${fmtNum(el.area, 1)} m²</span>`;
+  const head = (color, value) => `<div class="hd"><span class="sw" style="background:${color}"></span><div class="hd-txt">
+      <div class="tt">${esc(title)}</div><div class="st">${esc(sub)}</div></div>${inline ? value : ''}</div>`;
   if (!g) {
-    return `<div class="hd"><span class="sw" style="background:var(--nodata)"></span><div>
-      <div class="tt">${esc(title)}</div><div class="st">${esc(sub)}</div></div></div>
-      <div class="kv">${idLine}${qty}</div>
-      <div class="warn">No Tally results for this type.</div>`;
+    const h = head('var(--nodata)', '<span class="hv muted">No data</span>');
+    if (mode === 'compact') return h;
+    const body = `<div class="kv">${idLine}${qty}</div><div class="warn">No Tally results for this type.</div>`;
+    return h + (inline ? `<div class="more">${body}</div>` : body);
   }
   const col = cssColor(tOf(el.value));
   const abs = fmtMass(el.abs, { sign: true });
@@ -466,16 +470,17 @@ function cardHTML(el) {
     return `<div class="mat"><span class="n" title="${esc(m.name)}">${esc(m.name)}</span><span class="x ${signCls(m.value)}">${fmtMassStr(m.value * el.share, { sign: true }).replace('CO₂e', '')}</span>
       <span class="b"><i style="${pos};background:${c}"></i><span class="zero" style="left:50%"></span></span></div>`;
   }).join('')}${g.ev.materials.length > 5 ? `<div class="h">+ ${g.ev.materials.length - 5} more</div>` : ''}</div>` : '';
-  return `<div class="hd"><span class="sw" style="background:${col}"></span><div>
-      <div class="tt">${esc(title)}</div><div class="st">${esc(sub)}</div></div></div>
-    <div class="hero"><span class="v ${signCls(el.abs)}">${abs.n}</span><span class="u">${abs.u}</span></div>
-    <div class="kv">
+  const h = head(col, `<span class="hv ${signCls(el.abs)}">${abs.n}<small>${abs.u}</small></span>`);
+  if (mode === 'compact') return h;
+  const hero = inline ? '' : `<div class="hero"><span class="v ${signCls(el.abs)}">${abs.n}</span><span class="u">${abs.u}</span></div>`;
+  const body = `<div class="kv">
       <span>Intensity</span><span>${fmtMetric(g.perArea, 'area', { sign: true }).n} kg/m² · ${fmtMetric(g.perVolume, 'volume', { sign: true }).n} kg/m³</span>
       <span>Type total · ${g.els.length} el.</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
       ${el.abs > 0 ? `<span>Share of emissions</span><span>${fmtNum(shareEm, 1)}%</span>` : `<span>Share of storage</span><span>${fmtNum(shareSt, 1)}%</span>`}
       ${idLine}${qty}
     </div>${matHTML}
     ${el.matchedBy && el.matchedBy !== 'Category + Family + Type' && el.matchedBy !== 'Element ID' ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
+  return h + hero + (inline ? `<div class="more">${body}</div>` : body);
 }
 
 const isPhone = () => matchMedia('(max-width: 760px)').matches;
@@ -492,9 +497,15 @@ function showCard(el, x, y) {
   elCard.hidden = true;
   $('#summary').hidden = false;
   card.hidden = false;
-  card.classList.toggle('pinned', el === state.pinned);
-  card.innerHTML = (el === state.pinned ? '<button class="close" aria-label="Close">×</button>' : '') + cardHTML(el);
+  const pinned = el === state.pinned;
+  const wasPinned = card.classList.contains('pinned') && card.dataset.uid === String(el.uid);
+  card.classList.toggle('pinned', pinned);
+  card.classList.toggle('compact', !pinned);
+  card.dataset.uid = el.uid;
+  card.innerHTML = (pinned ? '<button class="close" aria-label="Close">×</button>' : '') + cardHTML(el, pinned ? 'expanded' : 'compact');
   if (x !== undefined) placeCard(x, y);
+  // Drop the details down only when the card first opens, not on every refresh.
+  if (pinned && !wasPinned) card.querySelector('.more')?.classList.add('drop');
 }
 function placeCard(clientX, clientY) {
   const r = canvas.parentElement.getBoundingClientRect();
