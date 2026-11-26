@@ -7,10 +7,10 @@ A browser viewer that colors a Revit model by its embodied-carbon results from T
 - **Deeper color** means a stronger value. The scale is centered at zero.
 - **Hover** over any element to see a card with its type, carbon, intensity and quantities, plus a material breakdown of what drives the result. Click an element to pin its card.
 - **Elements:** results are grouped into Structure, Enclosure, Interiors and Other, the way Tally reports group results, each with a subtotal. Click a system or a type to isolate it and ghost the rest of the model. **Show unmatched elements**, at the top of the list, isolates elements with no results in gray. Hover one to see why it didn't match.
-- **View options** in the sidebar: section cut, outlier clipping, color mode and life-cycle stages. The **ⓘ** button next to Show unmatched elements opens the matching and column-mapping details.
+- **View options** in the sidebar: section cut, outlier clipping, color mode and life-cycle stages. The **ⓘ** button next to Show unmatched elements opens Matching details: how elements matched, what didn't, and (for Tally exports) the column mapping.
 - **Section cut:** slice the model by height to see interior elements such as cores, partitions and beams.
 
-It opens on a demo building with synthetic data. To see your own project, load your IFC and Tally export, or drag both files onto the window.
+It opens on a start screen: load your IFC and a Tally or C.Scale export, or click **or use demo** to load the Snowdon Towers sample (Autodesk's Revit sample project) with its C.Scale results. The shared demo link, which can't load IFC files, uses a small synthetic building instead.
 
 ## Run it
 
@@ -52,7 +52,7 @@ Export the type-level results as CSV or XLSX. Tally 2.0's exact column layout is
 | Biogenic carbon (optional) | anything containing `biogenic` |
 | Building system (optional) | `Building System`, `System`, `Building Element` |
 
-The parser ignores title rows above the header. For a workbook, it picks the sheet that looks most like a results table. If detection gets something wrong, open **Matching & columns** (the ⓘ button in Elements) and re-map the columns by hand.
+The parser ignores title rows above the header. For a workbook, it picks the sheet that looks most like a results table. If detection gets something wrong, open **Matching details** (the ⓘ button in Elements) and re-map the columns by hand.
 
 `sample/sample-tally.csv` shows the expected shape.
 
@@ -93,7 +93,7 @@ If the export has a building-system column, the viewer uses it. Otherwise it ass
 
 Names are compared case-insensitively, with whitespace and dash variants normalized. The hover card says when an element matched on a weaker rule.
 
-**Matching & columns** (the ⓘ button in Elements) also lists model types with no results and result types with no model elements. Renamed types and elements left out of the Tally run turn up there.
+**Matching details** (the ⓘ button in Elements) also lists model types with no results and result types with no model elements. Renamed types and elements left out of the Tally run turn up there.
 
 ## What the colors mean
 
@@ -133,7 +133,8 @@ src/model.js             IFC → meshes (web-ifc), demo model, volume/area measu
 src/color.js             diverging green–red scale
 src/demo-building.js     the procedural demo building + its material build-ups
 tools/make-samples.mjs   regenerates sample/sample-tally.csv and sample/demo-building.ifc
-sample/                  synthetic sample export + matching IFC (not real LCA data)
+sample/                  Snowdon Towers demo (Autodesk sample IFC, gzipped, + C.Scale export), and a
+                         small synthetic building + Tally-style export (not real LCA data)
 ```
 
 Run `node tools/make-samples.mjs` to regenerate the samples after editing the demo building.

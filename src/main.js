@@ -612,7 +612,7 @@ function renderSidebar() {
       </button>
       <ol>${list.map(row).join('')}</ol>
     </section>`;
-  }).join('') || '<p class="note">No matches. Click ⓘ above for matching and columns.</p>';
+  }).join('') || '<p class="note">No matches. Click ⓘ above for matching details.</p>';
 
   renderDiagnostics();
 }
@@ -638,7 +638,7 @@ function renderModelData() {
   $('#dataMeta').textContent = data ? [
     state.table?.cscale ? 'C.Scale export' : `${(data.types.size + data.elements.size).toLocaleString()} ${data.perElement ? 'records' : 'types'}`,
     nScen > 1 ? `${nScen} scenarios` : '',
-    df.demo ? 'synthetic sample' : `uploaded ${fmtWhen(df.at)}`].filter(Boolean).join(' · ') : '';
+    df.demo ? 'demo data' : `uploaded ${fmtWhen(df.at)}`].filter(Boolean).join(' · ') : '';
 
   // Scenario selector: shown when the export has more than one scenario.
   $('#scenarioBlock').hidden = nScen < 2;
@@ -985,7 +985,56 @@ window.addEventListener('drop', (e) => {
   [...e.dataTransfer.files].sort((a) => (a.name.toLowerCase().endsWith('.ifc') ? -1 : 1)).forEach(handleFile);
 });
 
+// Demo: the Snowdon Towers sample (Autodesk's Revit sample project, exported to IFC)
+// with its C.Scale results. The IFC is stored gzipped (GitHub's 100 MB file limit)
+// and unpacked in the browser. Where IFC can't load (the shared demo link) or the
+// download fails, fall back to the small synthetic building.
+const DEMO_IFC = 'sample/snowdon-towers.ifc.gz';
+const DEMO_RESULTS = 'sample/snowdon-towers-cscale.xlsx';
+
+async function fetchWithProgress(url, label) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  const total = +res.headers.get('content-length') || 0;
+  if (!res.body) return res.arrayBuffer();
+  const reader = res.body.getReader();
+  const chunks = []; let got = 0, last = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); got += value.length;
+    if (performance.now() - last > 100) { status(label, { sticky: true, progress: total ? got / total : null }); last = performance.now(); }
+  }
+  return new Blob(chunks).arrayBuffer();
+}
+
 async function loadDemo() {
+  if ($('#ifcZone').classList.contains('disabled') || typeof DecompressionStream === 'undefined') return loadSyntheticDemo();
+  try {
+    status('Downloading demo model…', { sticky: true, progress: 0 });
+    let buf = await fetchWithProgress(DEMO_IFC, 'Downloading demo model…');
+    const head = new Uint8Array(buf, 0, 2);
+    if (head[0] === 0x1f && head[1] === 0x8b) { // still gzipped (the server didn't decode it)
+      status('Unpacking demo model…', { sticky: true, progress: null });
+      buf = await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    }
+    const xlsx = await fetchWithProgress(DEMO_RESULTS, 'Downloading demo results…');
+    const table = await readTableFile(new File([xlsx], 'snowdon-towers-cscale.xlsx'));
+    setTable(table, 'Snowdon Towers · C.Scale results');
+    state.dataFile = { name: 'Snowdon Towers · C.Scale results', demo: true };
+    const model = await loadIfcModel(new File([buf], 'Snowdon Towers.ifc'), (m, p) => status(m, { sticky: true, progress: p }));
+    setModel(model);
+    state.modelFile = { name: 'Snowdon Towers (Autodesk sample)', demo: true };
+    refresh();
+    status(`Demo loaded · ${model.elements.length.toLocaleString()} elements`);
+  } catch (err) {
+    console.error(err);
+    status(`Couldn't load the Snowdon demo (${err.message}). Showing the small demo building instead.`, { error: true });
+    loadSyntheticDemo();
+  }
+}
+
+async function loadSyntheticDemo() {
   setModel(loadDemoModel());
   state.modelFile = state.dataFile = null;
   try {
