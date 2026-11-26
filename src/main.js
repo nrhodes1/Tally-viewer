@@ -305,6 +305,7 @@ function renderSidebar() {
   const st = fmtMass(totals.storage);
   const pct = model.elements.length ? Math.round((totals.matchedEls / model.elements.length) * 100) : 0;
   $('#summary').innerHTML = `
+    <h2>Summary</h2>
     <div class="stats">
       <div class="stat big"><div class="k">Net embodied carbon</div>
         <div class="v ${signCls(totals.net)}">${net.n}<small>${net.u}</small></div></div>
