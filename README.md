@@ -1,12 +1,13 @@
 # Carbon Hotspot Viewer
 
-A browser viewer that colours a Revit model by its embodied-carbon results from Tally (C.Scale), so you can spot hotspots at a glance.
+A browser viewer that colors a Revit model by its embodied-carbon results from Tally (C.Scale), so you can spot hotspots at a glance.
 
 - **Green** means the element stores more carbon (net biogenic storage) than it emits: CLT, glulam, hempcrete.
-- **Red** means net emissions: concrete, steel, aluminium, glazing.
-- **Deeper colour** means a stronger value. The scale is centred at zero.
+- **Red** means net emissions: concrete, steel, aluminum, glazing.
+- **Deeper color** means a stronger value. The scale is centered at zero.
 - **Hover** over any element to see a card with its type, carbon, intensity and quantities, plus a material breakdown of what drives the result. Click an element to pin its card.
-- **Types list:** click a type to isolate it and ghost the rest of the model.
+- **Types by system:** types are grouped into Structure, Enclosure, Interiors and Other, the way Tally reports group results, each with a subtotal. Click a system or a type to isolate it and ghost the rest of the model.
+- **Settings** (button over the 3D view) holds the color mode, life-cycle stages, scale options and the matching and column-mapping tools.
 - **Section cut:** slice the model by height to see interior elements such as cores, partitions and beams.
 
 It opens on a demo building with synthetic data. To see your own project, load your IFC and Tally export, or drag both files onto the window.
@@ -30,7 +31,7 @@ You can also host the folder on GitHub Pages. The libraries (three.js, web-ifc, 
 Use **File → Export → IFC**. The default settings work. Two of them matter:
 
 - Revit writes each element's `ObjectType` as `Family:Type` and its `Tag` as the Revit **Element ID**. The viewer reads both, so leave those defaults alone.
-- Export only what Tally analysed. Filter to the 3D view you used for Tally, and turn off rooms and spaces.
+- Export only what Tally analyzed. Filter to the 3D view you used for Tally, and turn off rooms and spaces.
 
 Each IFC class maps to the matching Revit category (`IfcWall` → Walls, `IfcSlab` → Floors, `IfcColumn` → Structural Columns, and so on).
 
@@ -38,7 +39,7 @@ Each IFC class maps to the matching Revit category (`IfcWall` → Walls, `IfcSla
 
 Export the type-level results as CSV or XLSX. Tally 2.0's exact column layout isn't publicly documented, so the viewer **detects columns by name**:
 
-| Field | Recognised headers (examples) |
+| Field | Recognized headers (examples) |
 | --- | --- |
 | Category | `Revit Category`, `Category` |
 | Family | `Revit Family`, `Family` |
@@ -49,23 +50,33 @@ Export the type-level results as CSV or XLSX. Tally 2.0's exact column layout is
 | GWP by stage, wide layout | `GWP A1-A3 …`, `Global Warming … A4`, `… Module D`, `… End of Life` |
 | GWP by stage, long layout | a `Life Cycle Stage` column plus one GWP value column |
 | Biogenic carbon (optional) | anything containing `biogenic` |
+| Building system (optional) | `Building System`, `System`, `Building Element` |
 
-The parser ignores title rows above the header. For a workbook, it picks the sheet that looks most like a results table. If detection gets something wrong, open **Matching & columns** in the sidebar and re-map the columns by hand.
+The parser ignores title rows above the header. For a workbook, it picks the sheet that looks most like a results table. If detection gets something wrong, open **Settings › Matching & columns** and re-map the columns by hand.
 
 `sample/sample-tally.csv` shows the expected shape.
+
+## Building systems
+
+If the export has a building-system column, the viewer uses it. Otherwise it assigns each type from its Revit category:
+
+- **Structure:** structural foundations, columns, framing and rebar; floors; walls whose type name says core, shear, structural or retaining.
+- **Enclosure:** roofs, curtain walls, curtain panels, mullions and windows; walls and doors whose type name says ext, exterior, facade, cladding or veneer.
+- **Interiors:** all other walls and doors, plus ceilings, stairs, railings, casework and furniture.
+- **Other:** anything else, such as generic models.
 
 ## How results are joined to elements
 
 1. **Element ID**: used when the export has per-element rows.
-2. **Category + Family + Type**: the normal case. Each Revit wall type, such as `Basic Wall: Ext - CLT 120 + Wood Fibre 160`, stays distinct.
+2. **Category + Family + Type**: the normal case. Each Revit wall type, such as `Basic Wall: Ext - CLT 120 + Wood Fiber 160`, stays distinct.
 3. **Family + Type**: used if the category doesn't line up, but only when that pair is unique.
 4. **Type name alone**: the last resort, also only when the name is unique.
 
-Names are compared case-insensitively, with whitespace and dash variants normalised. The hover card says when an element matched on a weaker rule.
+Names are compared case-insensitively, with whitespace and dash variants normalized. The hover card says when an element matched on a weaker rule.
 
-**Matching & columns** also lists model types with no results and result types with no model elements. Renamed types and elements left out of the Tally run turn up there.
+**Settings › Matching & columns** also lists model types with no results and result types with no model elements. Renamed types and elements left out of the Tally run turn up there.
 
-## What the colours mean
+## What the colors mean
 
 | Mode | Value per element |
 | --- | --- |
@@ -77,14 +88,14 @@ The viewer measures volume and face area from the mesh. Face area is the largest
 
 - **Life-cycle stages:** toggle which modules count. Module D is off by default, as EN 15978 reports it separately.
 - **Biogenic storage:** included by default. Turn it off if your export already nets biogenic carbon into GWP, or to see fossil emissions only.
-- **Outlier clipping:** each side of the scale is capped at a percentile (95th by default), so one huge slab doesn't wash out everything else. Elements past the cap show at full colour.
+- **Outlier clipping:** each side of the scale is capped at a percentile (95th by default), so one huge slab doesn't wash out everything else. Elements past the cap show at full color.
 - **Same scale:** by default, green and red scale independently, so storage stays visible next to large emissions. Tick this to put both on one scale for a like-for-like comparison.
 
 ## Files
 
 ```
 index.html               page + import map
-src/main.js              scene, matching, colouring, hover card, sidebar
+src/main.js              scene, matching, coloring, hover card, sidebar
 src/data.js              CSV/XLSX reading, column detection, per-type aggregation
 src/model.js             IFC → meshes (web-ifc), demo model, volume/area measurement
 src/color.js             diverging green–red scale

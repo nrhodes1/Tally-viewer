@@ -1,7 +1,7 @@
-// A small procedural demo building: 4-storey mass-timber office with a concrete
+// A small procedural demo building: 4-story mass-timber office with a concrete
 // core, steel transfer beams, a glazed ground-floor storefront and a couple of
 // hempcrete walls. Every element is an axis-aligned box in Revit-style Z-up
-// metres, tagged with the Category / Family / Type a Revit model would carry.
+// meters, tagged with the Category / Family / Type a Revit model would carry.
 //
 // Shared by the browser viewer (demo mode) and tools/make-samples.mjs (which
 // writes sample/demo-building.ifc and sample/sample-tally.csv from it).
@@ -61,7 +61,7 @@ export function buildDemoElements() {
     // Suspended CLT floor (or roof at top) per 6x8 bay
     for (let i = 0; i < gx.length - 1; i++) for (let j = 0; j < gy.length - 1; j++) {
       if (L === LEVELS - 1)
-        add('Roofs', 'Basic Roof', 'CLT 200 + Wood Fibre 200 + EPDM',
+        add('Roofs', 'Basic Roof', 'CLT 200 + Wood Fiber 200 + EPDM',
           gx[i], gy[j], z1 - 0.2, gx[i + 1], gy[j + 1], z1 + 0.25);
       else
         add('Floors', 'Floor', 'CLT 5-ply 175 + Concrete Topping 50',
@@ -86,15 +86,15 @@ export function buildDemoElements() {
         add('Curtain Panels', 'System Panel', 'Glazed - Triple IGU', xa + 0.05, -0.36, z0 + 0.05, xm - 0.025, -0.33, zt - 0.05);
         add('Curtain Panels', 'System Panel', 'Glazed - Triple IGU', xm + 0.025, -0.36, z0 + 0.05, xb - 0.05, -0.33, zt - 0.05);
         for (const xx of [xa, xm, xb])
-          add('Curtain Wall Mullions', 'Rectangular Mullion', 'Aluminium 50x150',
+          add('Curtain Wall Mullions', 'Rectangular Mullion', 'Aluminum 50x150',
             xx - 0.025, -0.42, z0, xx + 0.025, -0.27, zt);
-        add('Curtain Wall Mullions', 'Rectangular Mullion', 'Aluminium 50x150', xa, -0.42, zt - 0.05, xb, -0.27, zt);
-        add('Curtain Wall Mullions', 'Rectangular Mullion', 'Aluminium 50x150', xa, -0.42, z0, xb, -0.27, z0 + 0.05);
+        add('Curtain Wall Mullions', 'Rectangular Mullion', 'Aluminum 50x150', xa, -0.42, zt - 0.05, xb, -0.27, zt);
+        add('Curtain Wall Mullions', 'Rectangular Mullion', 'Aluminum 50x150', xa, -0.42, z0, xb, -0.27, z0 + 0.05);
       } else {
-        add('Walls', 'Basic Wall', 'Ext - CLT 120 + Wood Fibre 160', gx[i], -0.47, z0, gx[i + 1], -0.15, z1);
+        add('Walls', 'Basic Wall', 'Ext - CLT 120 + Wood Fiber 160', gx[i], -0.47, z0, gx[i + 1], -0.15, z1);
       }
       // North
-      add('Walls', 'Basic Wall', 'Ext - CLT 120 + Wood Fibre 160', gx[i], D + 0.15, z0, gx[i + 1], D + 0.47, z1);
+      add('Walls', 'Basic Wall', 'Ext - CLT 120 + Wood Fiber 160', gx[i], D + 0.15, z0, gx[i + 1], D + 0.47, z1);
     }
     // Short facades (west x=0, east x=W) - brick veneer on steel stud
     for (let j = 0; j < gy.length - 1; j++) {
@@ -117,7 +117,7 @@ export function buildDemoElements() {
   return els;
 }
 
-// Per-type material build-ups used to synthesise the sample Tally export.
+// Per-type material build-ups used to synthesize the sample Tally export.
 // basis: 'area' -> values per m2 of face area, 'volume' -> per m3.
 // Each material: [name, massPerUnit kg, A1-A3, A4, B2-B5, C2-C4, D, biogenic]
 export const DEMO_ASSEMBLIES = {
@@ -129,7 +129,7 @@ export const DEMO_ASSEMBLIES = {
     ['Ready-mix concrete, 25 MPa', 480, 52, 1.8, 0, 2.7, -0.8, 0],
     ['Welded wire mesh', 4, 6.2, 0.1, 0, 0.1, -2.1, 0],
     ['XPS insulation 50mm', 1.6, 9.4, 0.2, 0, 0.6, 0, 0],
-    ['Polyethylene vapour barrier', 0.2, 0.6, 0, 0, 0.1, 0, 0],
+    ['Polyethylene vapor barrier', 0.2, 0.6, 0, 0, 0.1, 0, 0],
   ]},
   'GL24h 300x300': { basis: 'volume', materials: [
     ['Glulam, softwood', 470, 168, 14, 0, 22, -95, -812],
@@ -148,18 +148,18 @@ export const DEMO_ASSEMBLIES = {
     ['Concrete topping 50mm', 120, 14.6, 0.5, 0, 0.7, -0.2, 0],
     ['Acoustic underlayment', 1.5, 2.1, 0.1, 1.2, 0.2, 0, 0],
   ]},
-  'CLT 200 + Wood Fibre 200 + EPDM': { basis: 'area', materials: [
+  'CLT 200 + Wood Fiber 200 + EPDM': { basis: 'area', materials: [
     ['Cross-laminated timber, 200mm', 94, 26.4, 2.7, 0, 4.1, -15.1, -158],
-    ['Wood fibre insulation board', 30, 17.8, 0.9, 0, 1.2, -6.4, -47],
+    ['Wood fiber insulation board', 30, 17.8, 0.9, 0, 1.2, -6.4, -47],
     ['EPDM membrane', 1.9, 6.8, 0.1, 6.8, 0.4, 0, 0],
   ]},
   'Core - Concrete 300': { basis: 'volume', materials: [
     ['Ready-mix concrete, 35 MPa', 2400, 318, 9, 0, 14, -4, 0],
     ['Reinforcing steel', 130, 152, 3, 0, 1.5, -55, 0],
   ]},
-  'Ext - CLT 120 + Wood Fibre 160': { basis: 'area', materials: [
+  'Ext - CLT 120 + Wood Fiber 160': { basis: 'area', materials: [
     ['Cross-laminated timber, 120mm', 56, 15.8, 1.6, 0, 2.5, -9, -95],
-    ['Wood fibre insulation board', 24, 14.2, 0.7, 0, 1, -5.1, -38],
+    ['Wood fiber insulation board', 24, 14.2, 0.7, 0, 1, -5.1, -38],
     ['Timber cladding, larch', 11, 2.9, 0.3, 2.9, 0.4, -1.8, -18],
     ['Breather membrane', 0.2, 0.9, 0, 0, 0.1, 0, 0],
   ]},
@@ -174,9 +174,9 @@ export const DEMO_ASSEMBLIES = {
     ['Float glass, 3 panes', 30, 46, 1.6, 46, 0.9, -3, 0],
     ['IGU spacers + sealant', 1.2, 9.5, 0.1, 9.5, 0.2, 0, 0],
   ]},
-  'Aluminium 50x150': { basis: 'volume', materials: [
+  'Aluminum 50x150': { basis: 'volume', materials: [
     // per m3 of bounding box (hollow section)
-    ['Extruded aluminium, anodised', 540, 5600, 22, 0, 15, -2250, 0],
+    ['Extruded aluminum, anodized', 540, 5600, 22, 0, 15, -2250, 0],
     ['Thermal break, polyamide', 25, 175, 1, 0, 2.5, 0, 0],
   ]},
   'Int - Gypsum on Wood Stud 150': { basis: 'area', materials: [

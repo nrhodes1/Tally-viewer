@@ -1,4 +1,4 @@
-// Diverging green - neutral - red scale centred at zero.
+// Diverging green - neutral - red scale centered at zero.
 // Negative values (net biogenic storage) -> green, positive (emissions) -> red.
 const GREEN_DEEP = [0.05, 0.42, 0.20];
 const GREEN_MID = [0.42, 0.74, 0.45];

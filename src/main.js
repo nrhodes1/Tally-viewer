@@ -21,7 +21,7 @@ const state = {
   clip: 95,
   shared: false,
   cut: 1,                 // section-cut height as a fraction of model height (1 = off)
-  isolate: null,          // group key
+  isolate: null,          // {kind: 'type' | 'system', key}
   hovered: null,
   pinned: null,
   groups: new Map(),      // key -> {key, rec, els, volume, area, ev, value per metric}
@@ -197,7 +197,7 @@ function compute() {
   state.groups = groups;
   state.totals = { net, emissions, storage, matchedEls, unmatchedNet, unmatchedTypes, totalTypes: src.length };
 
-  // Colour scale: clip each side at the chosen percentile of the element values.
+  // Color scale: clip each side at the chosen percentile of the element values.
   const vals = model.elements.filter((e) => e.rec).map((e) => e.value);
   const pos = vals.filter((v) => v > 0).sort((a, b) => a - b);
   const neg = vals.filter((v) => v < 0).map((v) => -v).sort((a, b) => a - b);
@@ -208,11 +208,41 @@ function compute() {
 
 function tOf(v) { return v >= 0 ? v / state.scale.pos : v / state.scale.neg; }
 
+// Building systems, as Tally reports group results (Structure / Enclosure / Interiors).
+const SYSTEMS = ['Structure', 'Enclosure', 'Interiors', 'Other'];
+function systemOf(rec) {
+  if (rec.system) {
+    const s = rec.system.toLowerCase();
+    if (/struct|foundation|substructure|frame/.test(s)) return 'Structure';
+    if (/enclos|envelope|facade|façade|exterior|roof/.test(s)) return 'Enclosure';
+    if (/interior|finish|partition/.test(s)) return 'Interiors';
+    return rec.system;
+  }
+  const c = String(rec.category || '').toLowerCase();
+  const t = `${rec.family} ${rec.type}`.toLowerCase();
+  if (/structural|foundation|^floors?$|^columns?$|framing|rebar|truss|^beams?$|^slabs?$/.test(c)) return 'Structure';
+  if (/curtain|window|roof|skylight|facade|fascia|soffit|gutter/.test(c)) return 'Enclosure';
+  if (/wall/.test(c)) {
+    if (/\b(ext|exterior|external|facade|façade|cladding|envelope|veneer|curtain|parapet)\b/.test(t)) return 'Enclosure';
+    if (/\b(core|shear|structural|retaining|foundation|basement|load.?bearing)\b/.test(t)) return 'Structure';
+    return 'Interiors';
+  }
+  if (/door/.test(c)) return /\b(ext|exterior|entrance|storefront)\b/.test(t) ? 'Enclosure' : 'Interiors';
+  if (/ceiling|stair|railing|casework|furniture|finish|partition|specialty|millwork/.test(c)) return 'Interiors';
+  return 'Other';
+}
+function inIsolation(el) {
+  const iso = state.isolate;
+  if (!iso) return true;
+  if (!el.rec) return false;
+  return iso.kind === 'type' ? el.rec.key === iso.key : systemOf(el.rec) === iso.key;
+}
+
 const tmpColor = new THREE.Color();
 function paint() {
   for (const el of state.model.elements) {
     const m = el.mesh.material;
-    const ghost = state.isolate && el.rec?.key !== state.isolate;
+    const ghost = !inIsolation(el);
     if (el.rec) {
       const [r, g, b] = divergingColor(tOf(el.value));
       m.color.setRGB(r, g, b, THREE.SRGBColorSpace);
@@ -293,24 +323,47 @@ function renderSidebar() {
     || '<span class="note">No stage columns detected.</span>';
   $('#clipVal').textContent = state.clip === 100 ? 'max (no clip)' : `${state.clip}th`;
 
-  // Types list, sorted by the current metric
+  // Types grouped by building system, each sorted by the current metric
   const groups = [...state.groups.values()];
   const mval = (g) => (state.metric === 'absolute' ? g.ev.net : state.metric === 'area' ? g.perArea : g.perVolume);
-  groups.sort((a, b) => mval(b) - mval(a));
   const maxAbs = Math.max(1e-9, ...groups.map((g) => Math.abs(mval(g))));
-  $('#typeList').innerHTML = groups.map((g) => {
+  const bySys = new Map();
+  for (const g of groups) {
+    const sys = systemOf(g.rec);
+    if (!bySys.has(sys)) bySys.set(sys, []);
+    bySys.get(sys).push(g);
+  }
+  const order = [...bySys.keys()].sort((x, y) => {
+    const i = SYSTEMS.indexOf(x), j = SYSTEMS.indexOf(y);
+    return (i < 0 ? 2.5 : i) - (j < 0 ? 2.5 : j) || x.localeCompare(y);
+  });
+  const isOn = (kind, key) => state.isolate?.kind === kind && state.isolate.key === key;
+  const row = (g) => {
     const v = mval(g);
     const f = fmtMetric(v, state.metric, { sign: true });
     const w = (Math.abs(v) / maxAbs) * 50;
     const tcol = cssColor(state.metric === 'absolute' ? Math.sign(v) * Math.min(1, Math.abs(v) / maxAbs) : tOf(v));
     const bar = v >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
-    return `<li data-key="${esc(g.key)}" class="${state.isolate === g.key ? 'on' : ''}" title="${esc(g.rec.family)}: ${esc(g.rec.type)}">
+    return `<li data-kind="type" data-key="${esc(g.key)}" class="${isOn('type', g.key) ? 'on' : ''}" title="${esc(g.rec.family)}: ${esc(g.rec.type)}">
       <span class="nm"><span class="sw" style="background:${tcol}"></span>${esc(g.rec.type || g.rec.elementId)}</span>
       <span class="vv ${signCls(v)}">${f.n}</span>
       <span class="bar"><i style="${bar};background:${tcol}"></i></span>
       <span class="meta">${esc(g.rec.category || '—')} · ${g.els.length} el. · ${state.metric === 'absolute' ? '' : fmtMassStr(g.ev.net, { sign: true }) + ' · '}${f.u}</span>
     </li>`;
-  }).join('') || '<li class="meta">No elements matched. Open “Matching &amp; columns” below.</li>';
+  };
+  $('#typeList').innerHTML = order.map((sys) => {
+    const list = bySys.get(sys).sort((x, y) => mval(y) - mval(x));
+    const net = list.reduce((acc, g) => acc + g.ev.net, 0);
+    const count = list.reduce((acc, g) => acc + g.els.length, 0);
+    return `<section class="sys">
+      <button class="sys-hd ${isOn('system', sys) ? 'on' : ''}" data-kind="system" data-key="${esc(sys)}">
+        <span class="sys-nm">${esc(sys)}</span>
+        <span class="sys-meta">${list.length} types · ${count} el.</span>
+        <span class="sys-v ${signCls(net)}">${fmtMassStr(net, { sign: true })}</span>
+      </button>
+      <ol>${list.map(row).join('')}</ol>
+    </section>`;
+  }).join('') || '<p class="note">No elements matched. Open Settings › Matching &amp; columns.</p>';
 
   renderDiagnostics();
 }
@@ -383,7 +436,7 @@ function pick(clientX, clientY) {
   const r = canvas.getBoundingClientRect();
   pointer.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const targets = state.model.elements.filter((e) => !state.isolate || e.rec?.key === state.isolate).map((e) => e.mesh);
+  const targets = state.model.elements.filter(inIsolation).map((e) => e.mesh);
   const hit = raycaster.intersectObjects(targets, false).find((h) => state.cut >= 1 || cutPlane.distanceToPoint(h.point) >= 0);
   return hit ? hit.object.userData.element : null;
 }
@@ -495,7 +548,7 @@ card.addEventListener('click', (e) => {
 });
 elCard.addEventListener('click', (e) => { if (e.target.closest('.close')) clearPin(); });
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { state.isolate = null; clearPin(); renderSidebar(); }
+  if (e.key === 'Escape' && !$('#settings').open) { state.isolate = null; clearPin(); renderSidebar(); }
 });
 
 // ------------------------------------------------------------------ controls
@@ -514,8 +567,9 @@ $('#sharedToggle').addEventListener('change', (e) => { state.shared = e.target.c
 $('#cutRange').addEventListener('input', (e) => { state.cut = +e.target.value / 100; applyCut(); });
 $('#clipRange').addEventListener('input', (e) => { state.clip = +e.target.value; refresh(); });
 $('#typeList').addEventListener('click', (e) => {
-  const li = e.target.closest('li[data-key]'); if (!li) return;
-  state.isolate = state.isolate === li.dataset.key ? null : li.dataset.key;
+  const li = e.target.closest('[data-kind]'); if (!li) return;
+  const next = { kind: li.dataset.kind, key: li.dataset.key };
+  state.isolate = state.isolate?.kind === next.kind && state.isolate.key === next.key ? null : next;
   paint(); renderSidebar();
 });
 $('#diagBody').addEventListener('change', (e) => {
@@ -530,8 +584,14 @@ $('#diagBody').addEventListener('change', (e) => {
   }
   setTable(t, state.dataName);
   refresh();
-  $('#diag').open = true;
 });
+
+// ------------------------------------------------------------------ settings sheet
+const settings = $('#settings');
+$('#settingsBtn').addEventListener('click', () => settings.showModal());
+$('#settingsClose').addEventListener('click', () => settings.close());
+// Tapping the dimmed backdrop (outside the sheet) closes it.
+settings.addEventListener('click', (e) => { if (e.target === settings) settings.close(); });
 
 // ------------------------------------------------------------------ file loading
 const statusEl = $('#status');

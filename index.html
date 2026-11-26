@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Carbon Hotspot Viewer</title>
-<meta name="description" content="See embodied-carbon hotspots in a Revit model: IFC geometry coloured by Tally / C.Scale results, green for stored carbon, red for emissions.">
+<meta name="description" content="See embodied-carbon hotspots in a Revit model: IFC geometry colored by Tally / C.Scale results, green for stored carbon, red for emissions.">
 <link rel="stylesheet" href="src/styles.css">
 <script type="importmap">
 {
@@ -42,7 +42,36 @@
     <section class="block ecard" id="elCard" hidden></section>
 
     <section class="block">
-      <h2>Colour by</h2>
+      <h2>Section cut</h2>
+      <label class="range">Cut model at <b id="cutVal">off</b>
+        <input type="range" id="cutRange" min="2" max="100" step="1" value="100">
+      </label>
+    </section>
+
+    <section class="block grow">
+      <h2>Types by system <span class="muted" id="typesHint">tap to isolate</span></h2>
+      <div id="typeList" class="types"></div>
+    </section>
+  </aside>
+
+  <main id="stage">
+    <canvas id="viewport"></canvas>
+    <button id="settingsBtn" class="fab" aria-haspopup="dialog" aria-controls="settings"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></button>
+    <div id="legend"></div>
+    <div id="status" hidden></div>
+    <div id="dropHint" hidden><div>Drop an <b>.ifc</b> model or a Tally <b>.csv / .xlsx</b></div></div>
+    <div id="card" class="ecard" hidden></div>
+  </main>
+</div>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <div class="sheet">
+    <header class="sheet-hd">
+      <h2 id="settingsTitle">Settings</h2>
+      <button class="close" id="settingsClose" aria-label="Close settings">×</button>
+    </header>
+    <section class="block">
+      <h2>Color by</h2>
       <div class="seg" id="metricSeg" role="radiogroup">
         <button data-metric="absolute" class="on">Total</button>
         <button data-metric="area">per m²</button>
@@ -59,34 +88,13 @@
         <input type="range" id="clipRange" min="75" max="100" step="1" value="95">
       </label>
       <label class="check"><input type="checkbox" id="sharedToggle"> Same scale for storage and emissions</label>
-
-      <h2>Section cut</h2>
-      <label class="range">Cut model at <b id="cutVal">off</b>
-        <input type="range" id="cutRange" min="2" max="100" step="1" value="100">
-      </label>
     </section>
-
-    <section class="block grow">
-      <h2>Types <span class="muted" id="typesHint">click to isolate</span></h2>
-      <ol id="typeList" class="types"></ol>
-    </section>
-
     <section class="block">
-      <details id="diag">
-        <summary>Matching &amp; columns</summary>
-        <div id="diagBody"></div>
-      </details>
+      <h2>Matching &amp; columns</h2>
+      <div id="diagBody"></div>
     </section>
-  </aside>
-
-  <main id="stage">
-    <canvas id="viewport"></canvas>
-    <div id="legend"></div>
-    <div id="status" hidden></div>
-    <div id="dropHint" hidden><div>Drop an <b>.ifc</b> model or a Tally <b>.csv / .xlsx</b></div></div>
-    <div id="card" class="ecard" hidden></div>
-  </main>
-</div>
+  </div>
+</dialog>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

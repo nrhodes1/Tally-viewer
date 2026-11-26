@@ -116,7 +116,7 @@ export function stageFromText(s) {
 
 export function detectColumns(headers) {
   const m = { category: null, family: null, type: null, familyType: null, elementId: null,
-    material: null, mass: null, biogenic: null, stageCol: null, gwp: [], total: null };
+    material: null, mass: null, biogenic: null, stageCol: null, system: null, gwp: [], total: null };
   const H = headers.map((h) => ({ h, n: h.toLowerCase().replace(/[_]/g, ' ').replace(/\s+/g, ' ').trim() }));
   const pick = (pred) => H.find(({ n }) => n && pred(n))?.h ?? null;
 
@@ -129,6 +129,7 @@ export function detectColumns(headers) {
   m.material = pick((n) => /material name|tally entry|^material$/.test(n))
     ?? pick((n) => /material|product name|layer/.test(n) && !/group|category|type/.test(n));
   m.mass = pick((n) => /\bmass\b|weight/.test(n));
+  m.system = pick((n) => /building system|^system$|building element|element group|^division$/.test(n));
   m.biogenic = pick((n) => /biogenic/.test(n));
   m.stageCol = pick((n) => /life\s*-?\s*cycle stage|lifecycle stage|^stage$|^module$|^phase$/.test(n));
 
@@ -192,6 +193,7 @@ export function buildCarbonData(table) {
     const target = eid ? elements : types;
     if (!target.has(key)) target.set(key, { key, category, family, type, elementId: eid || null, materials: new Map() });
     const rec = target.get(key);
+    if (m.system && !rec.system && row[m.system]) rec.system = String(row[m.system]).trim();
     const matName = String((m.material && row[m.material]) || 'Assembly').trim() || 'Assembly';
     if (!rec.materials.has(matName)) rec.materials.set(matName, { stages: {}, biogenic: 0, mass: 0 });
     const mat = rec.materials.get(matName);
