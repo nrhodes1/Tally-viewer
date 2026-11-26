@@ -97,9 +97,6 @@ function frameModel() {
 }
 
 function setModel(model) {
-  // Start screen: shown until a model (IFC or demo) is loaded.
-  $('#app').classList.toggle('empty', !!model.empty);
-  $('#start').hidden = !model.empty;
   for (const c of [...modelRoot.children]) {
     modelRoot.remove(c);
     c.geometry?.dispose();
@@ -429,6 +426,21 @@ function refresh() {
   renderSidebar();
   renderLegend();
   if (state.pinned) showCard(state.pinned);
+  syncStart();
+}
+
+// Start screen stays up until both a model and results are loaded. A model loaded
+// first sits behind it, dimmed and not interactive.
+function syncStart() {
+  const hasModel = !state.model.empty, hasData = !!state.data;
+  const show = !hasModel || !hasData;
+  $('#start').hidden = !show;
+  $('#start').classList.toggle('over-model', show && hasModel);
+  $('#app').classList.toggle('empty', show);
+  controls.enabled = !show;
+  if (show) { state.hovered = state.pinned = null; card.hidden = true; }
+  $('#startIfc').classList.toggle('done', hasModel);
+  if (hasModel) $('#startIfcHint').textContent = `✓ ${state.modelFile?.name || state.model.name}`;
 }
 
 // ------------------------------------------------------------------ formatting
