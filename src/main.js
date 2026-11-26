@@ -164,7 +164,7 @@ function applyScenario(resetStages = false) {
 // ------------------------------------------------------------------ matching + values
 function match() {
   const { data, model } = state;
-  for (const el of model.elements) { el.rec = null; el.matchedBy = null; }
+  for (const el of model.elements) { el.rec = null; el.matchedBy = null; el.unmatchedReason = null; }
   if (!data) return;
   const byFamType = new Map(), byType = new Map();
   for (const rec of data.types.values()) {
@@ -225,11 +225,26 @@ function keywords(text) {
 }
 const FRAMING_MAT = /glue.?lam|glulam|\bglt\b|structural steel|hot.?rolled|hrsss|\blvl\b|\bpsl\b|beam|column/i;
 const PANEL_MAT = /cross.?lam|\bclt\b|concrete|plywood|lumber|deck|\bosb\b|joist|\bnlt\b|\bdlt\b|topping/i;
+// Material families named in a type or a C.Scale material. Where C.Scale lists bare
+// materials, an element whose type name names a family can only take a material of
+// that family: "Concrete Slab 6\"" must never take plywood just because both are
+// slab materials.
+const MATERIAL_FAMILIES = {
+  concrete: /concrete|cast.?in.?place|\bcip\b|precast/i,
+  steel: /steel|\bcfs\b|metal stud|metal deck/i,
+  wood: /wood|timber|lumber|plywood|\bclt\b|cross.?lam|glu.?lam|\bglt\b|\blvl\b|\bosb\b|\bnlt\b|\bdlt\b/i,
+  masonry: /brick|\bcmu\b|masonry|concrete block/i,
+  aluminum: /alumin/i,
+  glass: /glass|glaz|\bigu\b/i,
+};
+const familiesOf = (text) => new Set(Object.keys(MATERIAL_FAMILIES).filter((f) => MATERIAL_FAMILIES[f].test(text)));
+const overlaps = (a, b) => [...a].some((x) => b.has(x));
+
 function splitByAssembly() {
   const { data, model } = state;
   const parents = new Map();
   for (const el of model.elements) {
-    if (el.rec?.kind === 'subsection' && el.rec.groups?.size > 1) {
+    if (el.rec?.kind === 'subsection' && el.rec.groups?.size) {
       if (!parents.has(el.rec)) parents.set(el.rec, []);
       parents.get(el.rec).push(el);
     }
@@ -246,15 +261,28 @@ function splitByAssembly() {
       ...g, words: keywords(`${g.name} ${[...g.materials.keys()].join(' ')}`), els: [],
       kind: FRAMING_MAT.test(g.name) ? 'framing' : PANEL_MAT.test(g.name) ? 'panel' : '',
       size: [...g.materials.values()].reduce((a, m) => a + Math.abs(Object.values(m.stages).reduce((x, y) => x + y, 0)), 0),
+      families: familiesOf(`${g.name} ${[...g.materials.keys()].join(' ')}`),
     }));
     const rest = [];
     for (const el of els) {
+      // For bare-material groups (structure rows), only groups that don't contradict
+      // the material the type name states. Not for multi-layer assemblies: there a
+      // type name often names context ("Rainscreen for Concrete Core Walls",
+      // "Insulation on Metal Deck"), not what the element is made of.
+      const elFam = parent.byMaterial ? familiesOf(`${el.family} ${el.type}`) : new Set();
+      const allowed = groups.filter((g) => !elFam.size || !g.families.size || overlaps(elFam, g.families));
+      if (!allowed.length) {
+        el.rec = null; el.matchedBy = null;
+        el.unmatchedReason = `The type is ${[...elFam].join(' / ')}, but ${parent.system} › ${parent.type} in this scenario has none.`;
+        continue;
+      }
+      if (groups.length === 1) continue; // nothing to split
       const words = keywords(`${el.family} ${el.type}`);
       const elKind = /column|framing|beam|truss|brace/i.test(el.category) ? 'framing' : /floor|slab|roof|deck/i.test(el.category) ? 'panel' : '';
       // Score: shared keywords count double; the material suiting the element's category adds one.
       // Ties go to the larger group.
       let best = null, bestScore = 0;
-      for (const g of groups) {
+      for (const g of allowed) {
         let score = 0;
         for (const w of words) if (g.words.has(w)) score += 2;
         if (parent.byMaterial && elKind && g.kind === elKind) score += 1;
@@ -262,6 +290,7 @@ function splitByAssembly() {
       }
       if (best) best.els.push(el); else rest.push(el);
     }
+    if (groups.length === 1) continue;
     const claimed = groups.filter((g) => g.els.length);
     if (!claimed.length) continue; // nothing to go on: keep the subsection whole
     const unclaimed = groups.filter((g) => !g.els.length);
@@ -690,7 +719,7 @@ function cardHTML(el, mode = 'full') {
   if (!g) {
     const h = head('var(--nodata)', '<span class="hv muted">No data</span>');
     if (mode === 'compact') return h;
-    const body = `<div class="kv">${idLine}${qty}</div><div class="warn">No Tally results for this type.</div>`;
+    const body = `<div class="kv">${idLine}${qty}</div><div class="warn">${esc(el.unmatchedReason || 'No Tally results for this type.')}</div>`;
     return h + (inline ? `<div class="more">${body}</div>` : body);
   }
   const col = cssColor(tOf(el.value));
