@@ -207,7 +207,8 @@ button { font: inherit; color: inherit; }
   #stage { grid-row: 1; height: 58vh; height: 58dvh; position: sticky; top: 0; z-index: 2; }
   #panel { grid-row: 2; border-right: 0; overflow: visible; }
   /* Project totals (or the tapped element's card) sit right under the model. */
-  #summary, #elCard { order: -1; }
+  #scenarioBlock, #summary, #elCard { order: -1; }
+  #status { left: 12px; transform: none; max-width: calc(100% - 150px); border-radius: 12px; }
   #legend { left: 12px; bottom: 10px; }
   #legend .bar { width: 120px; }
 }
@@ -252,3 +253,11 @@ button { font: inherit; color: inherit; }
 #card .more.drop { animation: drop .22s ease-out; overflow: hidden; }
 @keyframes drop { from { max-height: 0; opacity: 0; } to { max-height: 420px; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #card .more.drop { animation: none; } }
+
+/* Scenario selector */
+.select {
+  width: 100%; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; cursor: pointer;
+}
+.select:hover { border-color: var(--ink-3); }
+.select:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

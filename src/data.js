@@ -8,6 +8,8 @@
 // Optional: Material (layer breakdown), Biogenic carbon, Mass, Element ID
 // (if the export is per element instead of per type).
 
+import { isCScaleGrid, parseCScale } from './cscale.js';
+
 const XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs';
 
 export const norm = (s) => String(s ?? '')
@@ -55,6 +57,9 @@ export async function readTableFile(file) {
   if (/\.(xlsx|xlsm|xls)$/.test(name)) {
     const XLSX = await import(XLSX_URL);
     const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
+    const grids = wb.SheetNames.map((sn) => ({ sn, grid: XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '', raw: true }) }));
+    const cs = cscaleFromGrids(grids);
+    if (cs) return cs;
     // Pick the sheet whose detected header looks most like a results table.
     let best = null;
     for (const sn of wb.SheetNames) {
@@ -65,13 +70,43 @@ export async function readTableFile(file) {
     if (!best) throw new Error('No sheet with Category / Family / Type columns found.');
     return best;
   }
-  const t = gridToTable(parseCSV(await file.text()));
+  return tableFromText(await file.text());
+}
+
+export function tableFromText(text) {
+  const grid = parseCSV(text);
+  const t = cscaleFromGrids([{ sn: '', grid }]) || gridToTable(grid);
   if (!t) throw new Error('Could not find a header row with Type and GWP columns.');
   return t;
 }
 
-export function tableFromText(text) {
-  return gridToTable(parseCSV(text));
+const isCategoryByStage = (grid) => grid.slice(0, 20).some((row) => {
+  const r = row.map((c) => String(c).trim());
+  return r.some((c) => /^scenario$/i.test(c)) && r.some((c) => /^category$/i.test(c)) && r.some((c) => /^A1/.test(c));
+});
+
+// A C.Scale project-data export: takeoffs by building subsection and/or category by stage.
+function cscaleFromGrids(grids) {
+  const take = grids.find((g) => isCScaleGrid(g.grid));
+  const cats = grids.find((g) => /category by stage/i.test(g.sn) && isCategoryByStage(g.grid)) || grids.find((g) => isCategoryByStage(g.grid));
+  if (!take && !cats) return null;
+  const { sets, notes } = parseCScale({ takeoffs: take?.grid, categories: cats?.grid });
+  if (!sets.size) return null;
+  return { cscale: true, sets, notes, headers: [], rows: [], mapping: null, sheets: [take?.sn, cats?.sn].filter(Boolean) };
+}
+
+/** Results per scenario: Map<scenario name, data>. Exports without scenarios get one entry. */
+export function buildDataSets(table) {
+  if (table.cscale) return table.sets;
+  const m = table.mapping;
+  if (!m.scenario) return new Map([['', buildCarbonData(table)]]);
+  const by = new Map();
+  for (const row of table.rows) {
+    const s = String(row[m.scenario] ?? '').trim() || '(no scenario)';
+    if (!by.has(s)) by.set(s, []);
+    by.get(s).push(row);
+  }
+  return new Map([...by].map(([s, rows]) => [s, buildCarbonData({ ...table, rows })]));
 }
 
 // Find the header row (exports often start with title lines) and return rows as objects.
@@ -116,7 +151,7 @@ export function stageFromText(s) {
 
 export function detectColumns(headers) {
   const m = { category: null, family: null, type: null, familyType: null, elementId: null,
-    material: null, mass: null, biogenic: null, stageCol: null, system: null, gwp: [], total: null };
+    material: null, mass: null, biogenic: null, stageCol: null, system: null, scenario: null, gwp: [], total: null };
   const H = headers.map((h) => ({ h, n: h.toLowerCase().replace(/[_]/g, ' ').replace(/\s+/g, ' ').trim() }));
   const pick = (pred) => H.find(({ n }) => n && pred(n))?.h ?? null;
 
@@ -129,6 +164,7 @@ export function detectColumns(headers) {
   m.material = pick((n) => /material name|tally entry|^material$/.test(n))
     ?? pick((n) => /material|product name|layer/.test(n) && !/group|category|type/.test(n));
   m.mass = pick((n) => /\bmass\b|weight/.test(n));
+  m.scenario = pick((n) => /^scenario( name)?$|design option|^option$/.test(n));
   m.system = pick((n) => /building system|^system$|building element|element group|^division$/.test(n));
   m.biogenic = pick((n) => /biogenic/.test(n));
   m.stageCol = pick((n) => /life\s*-?\s*cycle stage|lifecycle stage|^stage$|^module$|^phase$/.test(n));

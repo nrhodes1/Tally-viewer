@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { loadDemoModel, loadIfcModel } from './model.js';
 import {
-  readTableFile, tableFromText, buildCarbonData, evalRecord, detectColumns, norm, typeKey,
+  readTableFile, tableFromText, buildDataSets, evalRecord, detectColumns, norm, typeKey,
 } from './data.js';
 import { divergingColor, cssColor, gradientCSS, percentile } from './color.js';
 
@@ -13,7 +13,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const state = {
   model: null,            // {elements, name}
   table: null,            // parsed table {headers, rows, mapping}
-  data: null,             // buildCarbonData result
+  sets: null,             // Map<scenario, results>
+  scenario: '',
+  data: null,             // results for the selected scenario
   dataName: '',
   modelFile: null,        // {name, at: Date, demo}
   dataFile: null,
@@ -124,12 +126,21 @@ function applyCut() {
 function setTable(table, name) {
   state.table = table;
   state.dataName = name;
-  state.data = buildCarbonData(table);
-  state.stages = new Set(state.data.stages.filter((s) => s !== 'D' || state.data.stages.length === 1));
-  state.biogenic = state.data.hasBiogenic;
-  $('#bioToggle').checked = state.biogenic;
+  state.sets = buildDataSets(table);
+  const names = [...state.sets.keys()];
+  if (!names.includes(state.scenario)) state.scenario = names[0];
+  applyScenario(true);
+}
+function applyScenario(resetStages = false) {
+  state.data = state.sets.get(state.scenario);
+  const stages = state.data.stages;
+  if (resetStages || ![...state.stages].every((s) => stages.includes(s)) || !state.stages.size) {
+    state.stages = new Set(stages.filter((s) => !/^D/.test(s) || stages.length === 1));
+    state.biogenic = state.data.hasBiogenic;
+  }
+  $('#bioToggle').checked = state.biogenic && state.data.hasBiogenic;
   $('#bioToggle').disabled = !state.data.hasBiogenic;
-  state.isolate = null;
+  if (state.isolate?.kind === 'type' && !state.data.types.has(state.isolate.key)) state.isolate = null;
 }
 
 // ------------------------------------------------------------------ matching + values
@@ -139,10 +150,13 @@ function match() {
   if (!data) return;
   const byFamType = new Map(), byType = new Map();
   for (const rec of data.types.values()) {
+    if (rec.kind) continue; // C.Scale groups match by subsection, below
     const ft = `${norm(rec.family)}|${norm(rec.type)}`;
     (byFamType.get(ft) || byFamType.set(ft, []).get(ft)).push(rec);
     (byType.get(norm(rec.type)) || byType.set(norm(rec.type), []).get(norm(rec.type))).push(rec);
   }
+  const subRecs = [...data.types.values()].filter((r) => r.kind === 'subsection');
+  const sysRecs = [...data.types.values()].filter((r) => r.kind === 'system');
   for (const el of model.elements) {
     let rec = null, how = null;
     if (data.perElement && el.elementId) { rec = data.elements.get(`id:${el.elementId}`); how = 'Element ID'; }
@@ -157,8 +171,42 @@ function match() {
         if (c?.length === 1) { rec = c[0]; how = 'Type name only'; }
       }
     }
+    if (!rec && (subRecs.length || sysRecs.length)) {
+      const sys = systemOf(el).toLowerCase();
+      const cands = subRecs.filter((r) => r.system.toLowerCase() === sys);
+      for (const re of subsectionHints(el, sys)) {
+        rec = cands.find((r) => re.test(r.type.toLowerCase()));
+        if (rec) { how = 'Building subsection'; break; }
+      }
+      if (!rec) { rec = sysRecs.find((r) => r.system.toLowerCase() === sys); how = 'Category'; }
+    }
     if (rec) { el.rec = rec; el.matchedBy = how; }
   }
+}
+
+// C.Scale groups results by building subsection ("Enclosure > Exterior Walls"), not by Revit type.
+// For each element, the subsection names to look for, most specific first.
+function subsectionHints(el, sys) {
+  const c = String(el.category || '').toLowerCase();
+  const t = `${el.family} ${el.type}`.toLowerCase();
+  if (/foundation/.test(c)) return [/foundations?$/, /foundation/];
+  if (/floor|slab/.test(c)) return /grade|\bsog\b/.test(t) ? [/on.?grade/, /slab/] : [/slabs?\/decks?|deck|suspended/, /floor|slab/];
+  if (/column/.test(c)) return [/column/, /frame|framing/, /slabs?\/decks?|deck/];
+  if (/framing|beam|truss/.test(c)) return [/beam|framing|frame/, /slabs?\/decks?|deck/];
+  if (/roof/.test(c)) return [/roof/];
+  if (/window|skylight/.test(c)) return [/window|glazing/, /curtain/];
+  if (/curtain/.test(c)) return [/curtain/, /glazing|window/];
+  if (/door/.test(c)) return sys === 'enclosure' ? [/exterior door|entrance/, /door/] : [/interior door/, /door/];
+  if (/ceiling/.test(c)) return [/ceiling/];
+  if (/stair/.test(c)) return [/stair/];
+  if (/railing/.test(c)) return [/railing/];
+  if (/casework|furniture|millwork/.test(c)) return [/casework|millwork|furni/];
+  if (/wall/.test(c)) {
+    if (sys === 'structure') return /foundation|basement|retaining/.test(t) ? [/foundation wall|retaining|basement/] : [/shear|core|structural wall|bearing wall/];
+    if (sys === 'enclosure') return [/exterior wall|facade|cladding/, /wall/];
+    return [/partition/, /interior wall/, /wall/];
+  }
+  return [];
 }
 
 function compute() {
@@ -178,11 +226,9 @@ function compute() {
     g.perArea = g.area > 1e-9 ? g.ev.net / g.area : 0;
     g.perVolume = g.volume > 1e-9 ? g.ev.net / g.volume : 0;
     net += g.ev.net;
-    for (const m of g.ev.materials) {
-      // Split gross emissions vs storage at the material level.
-      emissions += Math.max(0, m.value);
-      storage += Math.min(0, m.value);
-    }
+    // Emissions = selected life-cycle stages; storage = biogenic carbon, kept separate.
+    emissions += g.ev.emissions;
+    storage += g.ev.biogenic;
     for (const el of g.els) {
       const share = g.volume > 1e-9 ? el.volume / g.volume : g.area > 1e-9 ? el.area / g.area : 1 / g.els.length;
       el.share = share;
@@ -350,7 +396,7 @@ function renderSidebar() {
       <span class="nm"><span class="sw" style="background:${tcol}"></span>${esc(g.rec.type || g.rec.elementId)}</span>
       <span class="vv ${signCls(v)}">${f.n}</span>
       <span class="bar"><i style="${bar};background:${tcol}"></i></span>
-      <span class="meta">${esc(g.rec.category || '—')} · ${g.els.length} el.${state.metric === 'absolute' ? '' : ` · ${fmtMassStr(g.ev.net, { sign: true })} total`}</span>
+      <span class="meta">${esc((g.rec.kind === 'subsection' && g.rec.family) || g.rec.category || '—')} · ${g.els.length} el.${state.metric === 'absolute' ? '' : ` · ${fmtMassStr(g.ev.net, { sign: true })} total`}</span>
     </li>`;
   };
   $('#typeList').innerHTML = order.map((sys) => {
@@ -360,7 +406,7 @@ function renderSidebar() {
     return `<section class="sys">
       <button class="sys-hd ${isOn('system', sys) ? 'on' : ''}" data-kind="system" data-key="${esc(sys)}">
         <span class="sys-nm">${esc(sys)}</span>
-        <span class="sys-meta">${list.length} types · ${count} el.</span>
+        <span class="sys-meta">${list.length} ${list.length === 1 ? 'type' : 'types'} · ${count} el.</span>
         <span class="sys-v ${signCls(net)}">${fmtMassStr(net, { sign: true })}</span>
       </button>
       <ol>${list.map(row).join('')}</ol>
@@ -384,8 +430,18 @@ function renderModelData() {
   $('#ifcMeta').textContent = [`${model.elements.length.toLocaleString()} elements`,
     mf.demo ? 'built-in demo' : `uploaded ${fmtWhen(mf.at)}`].join(' · ');
   $('#dataFile').textContent = df.name;
-  $('#dataMeta').textContent = data ? [`${(data.types.size + data.elements.size).toLocaleString()} ${data.perElement ? 'records' : 'types'}`,
-    df.demo ? 'synthetic sample' : `uploaded ${fmtWhen(df.at)}`].join(' · ') : '';
+  const nScen = state.sets?.size || 0;
+  $('#dataMeta').textContent = data ? [
+    state.table?.cscale ? 'C.Scale export' : `${(data.types.size + data.elements.size).toLocaleString()} ${data.perElement ? 'records' : 'types'}`,
+    nScen > 1 ? `${nScen} scenarios` : '',
+    df.demo ? 'synthetic sample' : `uploaded ${fmtWhen(df.at)}`].filter(Boolean).join(' · ') : '';
+
+  // Scenario selector: shown when the export has more than one scenario.
+  $('#scenarioBlock').hidden = nScen < 2;
+  if (nScen > 1) {
+    $('#scenarioSel').innerHTML = [...state.sets.keys()].map((s) =>
+      `<option ${s === state.scenario ? 'selected' : ''}>${esc(s)}</option>`).join('');
+  }
   $('#mdSum').textContent = `${mf.name} · ${df.name}`;
 }
 
@@ -407,7 +463,9 @@ function renderDiagnostics() {
   if (notInModel.length) html += `<h3>Unmatched results (${notInModel.length})</h3><ul>${notInModel.slice(0, 40)
     .map((r) => `<li>${esc(r.category)} · ${esc(r.family)}: ${esc(r.type || r.elementId)}</li>`).join('')}</ul>`;
 
-  if (table) {
+  if (table?.cscale) {
+    html += `<h3>C.Scale export</h3><ul><li>Sheets used: ${table.sheets.map(esc).join(', ')}</li>${table.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>`;
+  } else if (table) {
     const m = table.mapping;
     const opt = (field) => `<select data-map="${field}"><option value="">—</option>${table.headers.filter(Boolean).map((h) =>
       `<option ${m[field] === h ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select>`;
@@ -480,8 +538,8 @@ function cardHTML(el, mode = 'full') {
   }
   const col = cssColor(tOf(el.value));
   const abs = fmtMass(el.abs, { sign: true });
-  const shareSt = state.totals.storage ? (Math.min(0, el.abs) / state.totals.storage) * 100 : 0;
-  const shareEm = state.totals.emissions ? (Math.max(0, el.abs) / state.totals.emissions) * 100 : 0;
+  const shareEm = state.totals.emissions ? ((g.ev.emissions * el.share) / state.totals.emissions) * 100 : 0;
+  const shareSt = state.totals.storage ? ((g.ev.biogenic * el.share) / state.totals.storage) * 100 : 0;
   const mats = g.ev.materials.slice(0, 5);
   const mMax = Math.max(1e-9, ...mats.map((m) => Math.abs(m.value)));
   const matHTML = mats.length > 1 || (mats[0] && mats[0].name !== 'Assembly') ? `<div class="mats"><div class="h">Assembly</div>${mats.map((m) => {
@@ -496,11 +554,13 @@ function cardHTML(el, mode = 'full') {
   const hero = inline ? '' : `<div class="hero"><span class="v ${signCls(el.abs)}">${abs.n}</span><span class="u">${abs.u}</span></div>`;
   const body = `<div class="kv">
       <span>Intensity</span><span>${fmtMetric(g.perArea, 'area', { sign: true }).n} kg/m² · ${fmtMetric(g.perVolume, 'volume', { sign: true }).n} kg/m³</span>
-      <span>Type total · ${g.els.length} el.</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
-      ${el.abs > 0 ? `<span>Share of emissions</span><span>${fmtNum(shareEm, 1)}%</span>` : `<span>Share of storage</span><span>${fmtNum(shareSt, 1)}%</span>`}
+      ${g.rec.kind ? `<span>Group</span><span>${esc(g.rec.kind === 'subsection' ? `${g.rec.system} › ${g.rec.type}` : g.rec.type)}</span>` : ''}
+      <span>${g.rec.kind ? 'Group' : 'Type'} total · ${g.els.length} el.</span><span>${fmtMassStr(g.ev.net, { sign: true })}</span>
+      ${g.ev.emissions > 0 ? `<span>Share of emissions</span><span>${fmtNum(shareEm, 1)}%</span>` : ''}
+      ${g.ev.biogenic < 0 ? `<span>Share of storage</span><span>${fmtNum(shareSt, 1)}%</span>` : ''}
       ${idLine}${qty}
     </div>${matHTML}
-    ${el.matchedBy && el.matchedBy !== 'Category + Family + Type' && el.matchedBy !== 'Element ID' ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
+    ${el.matchedBy && !['Category + Family + Type', 'Element ID', 'Building subsection'].includes(el.matchedBy) ? `<div class="warn">Matched by ${esc(el.matchedBy.toLowerCase())}</div>` : ''}`;
   return h + hero + (inline ? `<div class="more">${body}</div>` : body);
 }
 
@@ -618,6 +678,12 @@ $('#diagBody').addEventListener('change', (e) => {
   refresh();
 });
 
+$('#scenarioSel').addEventListener('change', (e) => {
+  state.scenario = e.target.value;
+  applyScenario();
+  refresh();
+});
+
 // ------------------------------------------------------------------ settings sheet
 const settings = $('#settings');
 $('#settingsBtn').addEventListener('click', () => settings.showModal());
@@ -654,7 +720,8 @@ async function handleFile(file) {
       setTable(table, file.name + (table.sheet ? ` › ${table.sheet}` : ''));
       state.dataFile = { name: state.dataName, at: new Date() };
       refresh();
-      status(`${state.data.types.size + state.data.elements.size} result records · ${state.totals.matchedEls} elements matched`);
+      const n = state.sets.size;
+      status(`${n > 1 ? `${n} scenarios · ` : ''}${state.totals.matchedEls} of ${state.model.elements.length} elements matched`);
     } else status(`Unsupported file: ${file.name}`, { error: true });
   } catch (err) {
     console.error(err);

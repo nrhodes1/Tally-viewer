@@ -56,6 +56,21 @@ The parser ignores title rows above the header. For a workbook, it picks the she
 
 `sample/sample-tally.csv` shows the expected shape.
 
+### C.Scale project-data exports
+
+The viewer also reads the workbook C.Scale exports (Project Summary, Category by Stage, Time Series, Takeoffs). These group results by C.Scale building subsection, such as "Enclosure > Exterior Walls", not by Revit type, so matching works differently:
+
+- Each element is matched to a subsection by its Revit category and type name. Footings go to Foundations, floors to Slabs/Decks (or Slabs-on-Grade if the type name says grade), columns and beams to Slabs/Decks, exterior walls to Exterior Walls, and so on.
+- Every element in a subsection gets the same intensity. Types can't be told apart, because the export doesn't name them.
+- Takeoffs give one whole-life total per material. The viewer splits it across life-cycle stages using that category's proportions in Category by Stage.
+- Stored carbon is reported once per scenario. The viewer spreads it across wood-based materials by volume.
+- Operational energy is left out. Construction activities, demolition, refrigerants and services show under unmatched results.
+- A scenario with no takeoffs is matched by category only (Structure, Enclosure, Interiors).
+
+## Scenarios
+
+If the export has more than one scenario (a C.Scale workbook, or any export with a `Scenario` or `Design Option` column), a Scenario selector appears above the summary. Switching scenarios recolors the model and updates every total.
+
 ## Building systems
 
 If the export has a building-system column, the viewer uses it. Otherwise it assigns each type from its Revit category:
