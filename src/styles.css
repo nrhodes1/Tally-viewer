@@ -37,9 +37,12 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
+/* Stop iOS Safari from inflating some text blocks on its own. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+#panel, #panel * { min-width: 0; }
 button { font: inherit; color: inherit; }
 
-#app { display: grid; grid-template-columns: 330px 1fr; height: 100%; }
+#app { display: grid; grid-template-columns: 330px minmax(0, 1fr); height: 100%; }
 #panel {
   background: var(--panel); border-right: 1px solid var(--line);
   overflow-y: auto; display: flex; flex-direction: column;
@@ -89,7 +92,7 @@ button { font: inherit; color: inherit; }
 .zone.disabled { cursor: default; border-style: solid; }
 .zone.disabled:hover { border-color: var(--line); }
 
-#summary .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+#summary .stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
 .stat .k { font-size: 11px; color: var(--ink-3); }
 .stat .v { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .stat .v small { font-size: 11px; font-weight: 500; color: var(--ink-3); margin-left: 2px; }
@@ -129,7 +132,7 @@ button { font: inherit; color: inherit; }
 .sys-meta { color: var(--ink-3); font-size: 11px; }
 .sys ol { margin-top: 4px; }
 .types li {
-  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 6px 8px; margin: 0 -8px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 6px 8px; margin: 0 -8px;
   border-radius: 7px; cursor: pointer; font-size: 12.5px;
 }
 .types li:hover { background: var(--chip); }
@@ -146,7 +149,7 @@ button { font: inherit; color: inherit; }
 #diagBody h3 { font-size: 11.5px; margin: 12px 0 4px; color: var(--ink); }
 #diagBody ul { margin: 0; padding-left: 16px; }
 #diagBody li { margin: 2px 0; }
-#diagBody .map { display: grid; grid-template-columns: 90px 1fr; gap: 4px 8px; align-items: center; }
+#diagBody .map { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 4px 8px; align-items: center; }
 #diagBody select { font: inherit; font-size: 12px; width: 100%; padding: 3px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; }
 #diagBody .gwp label { display: flex; gap: 6px; align-items: center; margin: 2px 0; }
 
@@ -200,9 +203,9 @@ button { font: inherit; color: inherit; }
 .ecard .hero { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 2px; }
 .ecard .hero .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .ecard .hero .u { color: var(--ink-3); }
-.ecard .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.ecard .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .ecard .kv span:nth-child(odd) { color: var(--ink-3); }
-.ecard .kv span:nth-child(even) { text-align: right; }
+.ecard .kv span:nth-child(even) { text-align: right; overflow-wrap: anywhere; }
 .ecard .mats { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
 .ecard .mats .h { color: var(--ink-3); font-size: 11px; margin-bottom: 4px; }
 .ecard .mat { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; margin: 4px 0; }
@@ -215,7 +218,10 @@ button { font: inherit; color: inherit; }
 .ecard .close { position: absolute; top: 6px; right: 8px; border: 0; background: none; cursor: pointer; color: var(--ink-3); font-size: 16px; }
 
 @media (max-width: 760px) {
-  #app { grid-template-columns: 1fr; grid-template-rows: 58vh auto; height: auto; }
+  #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 58vh auto; height: auto; }
+  /* iOS zooms the page when a control under 16px gets focus. */
+  .select, #diagBody select { font-size: 16px; }
+  .stat .k { overflow-wrap: anywhere; }
   #stage { grid-row: 1; height: 58vh; height: 58dvh; position: sticky; top: 0; z-index: 2; }
   #panel { grid-row: 2; border-right: 0; overflow: visible; }
   /* Project totals (or the tapped element's card) sit right under the model. */
