@@ -549,7 +549,7 @@ window.addEventListener('drop', (e) => {
 async function loadDemo() {
   setModel(loadDemoModel());
   try {
-    const text = await (await fetch('sample/sample-tally.csv')).text();
+    const text = window.__SAMPLE_CSV ?? await (await fetch('sample/sample-tally.csv')).text();
     setTable(tableFromText(text), 'sample-tally.csv (synthetic)');
   } catch (err) {
     console.error(err);
