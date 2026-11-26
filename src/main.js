@@ -638,7 +638,7 @@ function cardHTML(el, mode = 'full') {
   const abs = fmtMass(el.abs, { sign: true });
   const shareEm = state.totals.emissions ? ((g.ev.emissions * el.share) / state.totals.emissions) * 100 : 0;
   const shareSt = state.totals.storage ? ((g.ev.biogenic * el.share) / state.totals.storage) * 100 : 0;
-  const mats = g.ev.materials.slice(0, 5);
+  const mats = g.ev.materials;
   const mMax = Math.max(1e-9, ...mats.map((m) => Math.abs(m.value)));
   const matHTML = mats.length > 1 || (mats[0] && mats[0].name !== 'Assembly') ? `<div class="mats"><div class="h">Assembly</div>${mats.map((m) => {
     const w = (Math.abs(m.value) / mMax) * 50;
@@ -646,7 +646,7 @@ function cardHTML(el, mode = 'full') {
     const pos = m.value >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
     return `<div class="mat"><span class="n" title="${esc(m.name)}">${esc(m.name)}</span><span class="x ${signCls(m.value)}">${fmtMassStr(m.value * el.share, { sign: true }).replace('CO₂e', '')}</span>
       <span class="b"><i style="${pos};background:${c}"></i><span class="zero" style="left:50%"></span></span></div>`;
-  }).join('')}${g.ev.materials.length > 5 ? `<div class="h">+ ${g.ev.materials.length - 5} more</div>` : ''}</div>` : '';
+  }).join('')}</div>` : '';
   const h = head(col, `<span class="hv ${signCls(el.abs)}">${abs.n}<small>${abs.u}</small></span>`);
   if (mode === 'compact') return h;
   const hero = inline ? '' : `<div class="hero"><span class="v ${signCls(el.abs)}">${abs.n}</span><span class="u">${abs.u}</span></div>`;
